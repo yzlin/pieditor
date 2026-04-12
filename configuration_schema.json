@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "pieditor configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "doubleEscapeCommand": {
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Optional extension command name to invoke on empty-editor double-escape. Accepts either 'anycopy' or '/anycopy'."
+    },
+    "commandRemap": {
+      "type": "object",
+      "default": {},
+      "description": "Map of submitted slash command names to replacement command names. Keys and values may include a leading '/'; runtime normalization trims whitespace and strips the slash.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "filePicker": {
+      "$ref": "#/$defs/filePickerConfig"
+    },
+    "statusBar": {
+      "$ref": "#/$defs/statusBarConfig"
+    }
+  },
+  "$defs": {
+    "filePickerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "respectGitignore": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide files ignored by .gitignore when browsing."
+        },
+        "skipHidden": {
+          "type": "boolean",
+          "default": true,
+          "description": "Hide dotfiles and hidden directories in the picker."
+        },
+        "allowFolderSelection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow folders to be queued and inserted as @path/ refs."
+        },
+        "skipPatterns": {
+          "type": "array",
+          "description": "Directory or file name patterns skipped by the picker.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": ["node_modules"]
+        },
+        "tabCompletionMode": {
+          "type": "string",
+          "enum": ["segment", "bestMatch"],
+          "default": "bestMatch",
+          "description": "How Tab completes file-picker queries. 'segment' advances one path segment at a time; 'bestMatch' replaces the query with the strongest scoped fuzzy match."
+        },
+        "previewHighlightMode": {
+          "type": "string",
+          "enum": ["native", "builtin"],
+          "default": "native",
+          "description": "How the preview pane highlights source code. 'native' uses the local syntect addon with builtin fallback; 'builtin' always uses Pi's JS highlighter."
+        }
+      }
+    },
+    "statusBarSegmentId": {
+      "type": "string",
+      "enum": [
+        "pi",
+        "model",
+        "path",
+        "git",
+        "token_in",
+        "token_out",
+        "token_total",
+        "cost",
+        "context_pct",
+        "context_total",
+        "time_spent",
+        "time",
+        "session",
+        "hostname",
+        "cache_read",
+        "cache_write",
+        "thinking",
+        "extension_statuses"
+      ]
+    },
+    "statusBarSegmentOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "showThinkingLevel": {
+              "type": "boolean",
+              "description": "Show the current thinking level next to the model name when the model supports reasoning."
+            }
+          }
+        },
+        "path": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["basename", "abbreviated", "full"],
+              "description": "How to render the current working directory in the path segment."
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Maximum path length when using abbreviated mode."
+            }
+          }
+        },
+        "git": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "showBranch": {
+              "type": "boolean"
+            },
+            "showStaged": {
+              "type": "boolean"
+            },
+            "showUnstaged": {
+              "type": "boolean"
+            },
+            "showUntracked": {
+              "type": "boolean"
+            }
+          }
+        },
+        "time": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": ["12h", "24h"]
+            },
+            "showSeconds": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "statusBarSeparatorText": {
+      "type": "string",
+      "description": "Literal separator text inserted between visible status bar segments. May be empty."
+    },
+    "statusBarColorValue": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Either a Pi theme color name or a #RRGGBB hex color."
+    },
+    "statusBarColors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pi": { "$ref": "#/$defs/statusBarColorValue" },
+        "model": { "$ref": "#/$defs/statusBarColorValue" },
+        "path": { "$ref": "#/$defs/statusBarColorValue" },
+        "gitDirty": { "$ref": "#/$defs/statusBarColorValue" },
+        "gitClean": { "$ref": "#/$defs/statusBarColorValue" },
+        "thinking": { "$ref": "#/$defs/statusBarColorValue" },
+        "context": { "$ref": "#/$defs/statusBarColorValue" },
+        "contextWarn": { "$ref": "#/$defs/statusBarColorValue" },
+        "contextError": { "$ref": "#/$defs/statusBarColorValue" },
+        "cost": { "$ref": "#/$defs/statusBarColorValue" },
+        "tokens": { "$ref": "#/$defs/statusBarColorValue" },
+        "separator": { "$ref": "#/$defs/statusBarColorValue" }
+      }
+    },
+    "statusBarConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render a powerline-style status bar in the editor's top border."
+        },
+        "preset": {
+          "type": "string",
+          "enum": ["default", "minimal", "compact", "full", "nerd", "ascii"],
+          "default": "default",
+          "description": "Base status bar preset. Custom segment arrays inherit separator/colors/options from this preset."
+        },
+        "leftSegments": {
+          "type": "array",
+          "default": [],
+          "description": "Optional ordered list of segment ids to render on the left side of the status bar. When omitted, the preset default is used.",
+          "items": {
+            "$ref": "#/$defs/statusBarSegmentId"
+          }
+        },
+        "rightSegments": {
+          "type": "array",
+          "default": [],
+          "description": "Optional ordered list of segment ids to render on the right side of the status bar. When omitted, the preset default is used.",
+          "items": {
+            "$ref": "#/$defs/statusBarSegmentId"
+          }
+        },
+        "separator": {
+          "$ref": "#/$defs/statusBarSeparatorText"
+        },
+        "colors": {
+          "$ref": "#/$defs/statusBarColors"
+        },
+        "segmentOptions": {
+          "$ref": "#/$defs/statusBarSegmentOptions"
+        }
+      }
+    }
+  }
+}
