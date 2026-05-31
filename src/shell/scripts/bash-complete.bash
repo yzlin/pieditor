@@ -22,11 +22,63 @@ for dir in /opt/homebrew/etc/bash_completion.d /usr/share/bash-completion/comple
     done
 done
 
-# Set up completion environment
+parse_comp_words() {
+    local input="$1"
+    local word=""
+    local quote=""
+    local char=""
+    local escaped=0
+    local i=0
+
+    COMP_WORDS=()
+    for (( i = 0; i < ${#input}; i++ )); do
+        char="${input:i:1}"
+
+        if [[ $escaped -eq 1 ]]; then
+            word+="$char"
+            escaped=0
+            continue
+        fi
+
+        if [[ "$char" = '\\' ]]; then
+            escaped=1
+            continue
+        fi
+
+        if [[ -n "$quote" ]]; then
+            if [[ "$char" = "$quote" ]]; then
+                quote=""
+            else
+                word+="$char"
+            fi
+            continue
+        fi
+
+        case "$char" in
+            "'"|'"')
+                quote="$char"
+                ;;
+            $' '|$'\t'|$'\n')
+                if [[ -n "$word" ]]; then
+                    COMP_WORDS+=("$word")
+                    word=""
+                fi
+                ;;
+            *)
+                word+="$char"
+                ;;
+        esac
+    done
+
+    if [[ -n "$word" || -n "$quote" || $escaped -eq 1 ]]; then
+        COMP_WORDS+=("$word")
+    fi
+}
+
+# Set up completion environment without evaluating editor input.
 COMP_LINE="$__cmdline"
 COMP_POINT=${#COMP_LINE}
-eval set -- "$COMP_LINE"
-COMP_WORDS=("$@")
+parse_comp_words "$COMP_LINE"
 
 # Add empty word if line ends with space (completing new word)
 [[ "${COMP_LINE: -1}" = ' ' ]] && COMP_WORDS+=('')

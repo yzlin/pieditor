@@ -7,7 +7,7 @@ import type {
 } from "../file-picker/types.js";
 
 export const DEFAULT_TAB_COMPLETION_MODE: TabCompletionMode = "bestMatch";
-export const DEFAULT_PREVIEW_HIGHLIGHT_MODE: PreviewHighlightMode = "native";
+export const DEFAULT_PREVIEW_HIGHLIGHT_MODE: PreviewHighlightMode = "builtin";
 
 export const DEFAULT_FILE_PICKER_CONFIG: PickerRuntimeConfig = {
   respectGitignore: true,

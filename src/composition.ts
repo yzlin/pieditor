@@ -211,7 +211,9 @@ export function createPieditorComposition(
       }
 
       runtime.activeContext = ctx;
-      const config = loadConfig();
+      const config = loadConfig({
+        onConfigError: (message) => ctx.ui.notify(message, "error"),
+      });
       runtime.fixedEditorConfig = config.fixedEditor;
       runtime.fixedEditorInstallFailed = false;
       emitFixedEditorConfigChanged();

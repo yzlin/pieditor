@@ -12,7 +12,8 @@
     "skipHidden": true,
     "allowFolderSelection": true,
     "skipPatterns": ["node_modules"],
-    "tabCompletionMode": "bestMatch"
+    "tabCompletionMode": "bestMatch",
+    "previewHighlightMode": "builtin"
   },
   "fixedEditor": {
     "enabled": false,

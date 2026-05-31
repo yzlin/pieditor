@@ -95,6 +95,7 @@ interface EditorEnhancementsConfigLayer {
 interface LoadConfigOptions {
   homeDir?: string;
   cwd?: string;
+  onConfigError?: (message: string) => void;
 }
 
 const DEFAULT_CONFIG: EditorEnhancementsRuntimeConfig = {
@@ -385,7 +386,8 @@ function normalizeStatusBarConfig(
 }
 
 function loadConfigFile(
-  configPath: string
+  configPath: string,
+  onConfigError?: (message: string) => void
 ): EditorEnhancementsConfigLayer | null {
   if (!existsSync(configPath)) {
     return null;
@@ -424,7 +426,9 @@ function loadConfigFile(
     }
 
     return next;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    onConfigError?.(`Invalid pieditor config ${configPath}: ${message}`);
     return null;
   }
 }
@@ -595,8 +599,14 @@ export function loadConfig(
 ): EditorEnhancementsRuntimeConfig {
   const homeDir = options.homeDir ?? getHomeDir();
   const cwd = options.cwd ?? process.cwd();
-  const globalConfig = loadConfigFile(getGlobalPieditorConfigPath(homeDir));
-  const projectConfig = loadConfigFile(getProjectPieditorConfigPath(cwd));
+  const globalConfig = loadConfigFile(
+    getGlobalPieditorConfigPath(homeDir),
+    options.onConfigError
+  );
+  const projectConfig = loadConfigFile(
+    getProjectPieditorConfigPath(cwd),
+    options.onConfigError
+  );
 
   return resolveRuntimeConfig(globalConfig, projectConfig);
 }

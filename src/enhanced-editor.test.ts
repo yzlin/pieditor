@@ -232,12 +232,49 @@ describe("EnhancedEditor command remap", () => {
       },
     });
 
-    await editorInternals(editor).autocompleteProvider.getSuggestions(["/tree"], 0, 5, {
-      signal,
-      force: true,
-    });
+    await editorInternals(editor).autocompleteProvider.getSuggestions(
+      ["/tree"],
+      0,
+      5,
+      {
+        signal,
+        force: true,
+      }
+    );
 
     expect(receivedOptions).toEqual({ signal, force: true });
+  });
+
+  it("keeps autocomplete wrapping when Pi replaces the provider", async () => {
+    const editor = createEditor({});
+    const provider = {
+      getSuggestions() {
+        return Promise.resolve({
+          items: [{ value: "should-not-show", label: "should-not-show" }],
+          prefix: "@",
+        });
+      },
+      applyCompletion(
+        lines: string[],
+        cursorLine: number,
+        cursorCol: number,
+        _item: AutocompleteItem,
+        _prefix: string
+      ) {
+        return { lines, cursorLine, cursorCol };
+      },
+    };
+
+    editor.setAutocompleteProvider(provider);
+    editor.setAutocompleteProvider(provider);
+
+    const result = await editorInternals(
+      editor
+    ).autocompleteProvider.getSuggestions(["@"], 0, 1, {
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toBeNull();
   });
 
   it("submits the configured command on double escape when idle and editor is empty", () => {
@@ -559,7 +596,7 @@ describe("EnhancedEditor command remap", () => {
   });
 
   it("skips the status bar once the context is detached", () => {
-    const options = {
+    const options: Parameters<typeof createEditor>[1] = {
       statusBarEnabled: true,
       statusBarContext: createStatusBarContext(),
       statusBarFooterData: createStatusBarFooterData(),

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -177,5 +183,44 @@ describe("file picker preview", () => {
       details: "file",
       lines: ["File preview unavailable."],
     });
+  });
+
+  it("refuses previews through symlinks outside the picker root", () => {
+    const baseDir = createTempDir();
+    const root = join(baseDir, "workspace");
+    const outside = join(baseDir, "outside");
+    mkdirSync(root, { recursive: true });
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "secret.txt"), "secret", "utf8");
+    symlinkSync(outside, join(root, "linked"), "dir");
+
+    const preview = loadPreviewData({
+      cwdRoot: root,
+      currentDir: root,
+      entry: entry("linked/secret.txt", false),
+    });
+
+    expect(preview).toEqual({
+      kind: "file",
+      title: "linked/secret.txt",
+      details: "file",
+      lines: ["File preview unavailable."],
+    });
+  });
+
+  it("escapes terminal control bytes in text previews", () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "ansi.txt"), "safe\x1b[31mred\x1b[0m", "utf8");
+
+    const preview = loadPreviewData({
+      cwdRoot: root,
+      currentDir: root,
+      entry: entry("ansi.txt", false),
+      maxLines: 2,
+      maxBytes: 4096,
+    });
+
+    expect(preview.lines.join("\n")).not.toContain("\x1b");
+    expect(preview.lines).toEqual([" 1 │ safe�[31mred�[0m"]);
   });
 });

@@ -82,8 +82,8 @@
         "previewHighlightMode": {
           "type": "string",
           "enum": ["native", "builtin"],
-          "default": "native",
-          "description": "How the preview pane highlights source code. 'native' uses the local syntect addon with builtin fallback; 'builtin' always uses Pi's JS highlighter."
+          "default": "builtin",
+          "description": "How the preview pane highlights source code. 'builtin' uses Pi's JS highlighter; 'native' uses the optional local syntect addon with builtin fallback."
         }
       }
     },

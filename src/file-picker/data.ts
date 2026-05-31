@@ -13,13 +13,25 @@ export function getCwdRoot(): string {
   return process.cwd();
 }
 
-export function isWithinCwd(targetPath: string, cwdRoot: string): boolean {
-  const resolved = path.resolve(targetPath);
-  const normalizedCwd = path.resolve(cwdRoot);
+function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
+  const resolvedTarget = path.resolve(targetPath);
+  const resolvedRoot = path.resolve(rootPath);
   return (
-    resolved === normalizedCwd ||
-    resolved.startsWith(`${normalizedCwd}${path.sep}`)
+    resolvedTarget === resolvedRoot ||
+    resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)
   );
+}
+
+export function isWithinCwd(targetPath: string, cwdRoot: string): boolean {
+  if (!isPathWithinRoot(targetPath, cwdRoot)) {
+    return false;
+  }
+
+  try {
+    return isPathWithinRoot(fs.realpathSync(targetPath), fs.realpathSync(cwdRoot));
+  } catch {
+    return false;
+  }
 }
 
 function shouldSkipPattern(name: string, skipPatterns: string[]): boolean {
@@ -103,6 +115,9 @@ export function listDirectoryWithGit(
 
       const fullPath = path.join(dirPath, item.name);
       const relativePath = relDir ? path.join(relDir, item.name) : item.name;
+      if (!isWithinCwd(fullPath, cwdRoot)) {
+        continue;
+      }
 
       const isDirectory = resolveDirentDirectoryStatus(fullPath, item);
       if (isDirectory === null) {
@@ -185,6 +200,9 @@ export function listAllFiles(
 
       const fullPath = path.join(dirPath, item.name);
       const relativePath = path.relative(cwdRoot, fullPath);
+      if (!isWithinCwd(fullPath, cwdRoot)) {
+        continue;
+      }
 
       const isDirectory = resolveDirentDirectoryStatus(fullPath, item);
       if (isDirectory === null) {
@@ -268,6 +286,9 @@ export function listGitFiles(
 
       const fullPath = path.join(cwdRoot, relativePath);
       const name = path.basename(relativePath);
+      if (!isWithinCwd(fullPath, cwdRoot)) {
+        continue;
+      }
 
       let isDirectory = false;
       try {

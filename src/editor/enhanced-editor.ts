@@ -65,7 +65,7 @@ export class EnhancedEditor extends CustomEditor {
   private readonly tuiInstance: TUI;
   private readonly sessionStartTime = Date.now();
   private openingPicker = false;
-  private wrappedAutocompleteProvider = false;
+  private readonly wrappedAutocompleteProviders = new WeakSet<AutocompleteProvider>();
   private lastEscapeTime = 0;
   private submitHandler?: (text: string) => void;
 
@@ -111,15 +111,14 @@ export class EnhancedEditor extends CustomEditor {
   }
 
   setAutocompleteProvider(provider: AutocompleteProvider): void {
-    // Wrap once. If pi resets providers, we still want our wrapper.
-    if (!this.wrappedAutocompleteProvider && provider) {
-      const wrapped = wrapProviderWithShellAndAtFiltering(provider, this.shell);
-      super.setAutocompleteProvider(wrapped);
-      this.wrappedAutocompleteProvider = true;
+    if (!provider || this.wrappedAutocompleteProviders.has(provider)) {
+      super.setAutocompleteProvider(provider);
       return;
     }
 
-    super.setAutocompleteProvider(provider);
+    const wrapped = wrapProviderWithShellAndAtFiltering(provider, this.shell);
+    this.wrappedAutocompleteProviders.add(wrapped);
+    super.setAutocompleteProvider(wrapped);
   }
 
   async openFilePickerAtCursor(): Promise<void> {

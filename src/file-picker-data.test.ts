@@ -56,13 +56,13 @@ describe("file picker data listing", () => {
     expect(paths).not.toContain("src/loop/src/loop/src/loop");
   });
 
-  it("adds symlinked directory contents to git-backed search results", () => {
+  it("adds symlinked directory contents inside the repo to git-backed search results", () => {
     const root = createTempDir();
     const repo = join(root, "repo");
-    const target = join(root, "external-target");
+    mkdirSync(repo, { recursive: true });
+    const target = join(repo, "target");
     mkdirSync(join(target, "nested"), { recursive: true });
     writeFileSync(join(target, "nested", "alpha.txt"), "alpha");
-    mkdirSync(repo, { recursive: true });
     execFileSync("git", ["init", "-q"], { cwd: repo });
     symlinkSync(target, join(repo, "linked"), "dir");
 
@@ -72,14 +72,29 @@ describe("file picker data listing", () => {
     expect(paths).toContain("linked/nested/alpha.txt");
   });
 
+  it("does not traverse symlinked directory contents outside the root", () => {
+    const root = createTempDir();
+    const workspace = join(root, "workspace");
+    const outside = join(root, "outside");
+    mkdirSync(workspace, { recursive: true });
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(outside, "secret.txt"), "secret");
+    symlinkSync(outside, join(workspace, "linked"), "dir");
+
+    const paths = relativePaths(listAllFiles(workspace, workspace, [], true, []));
+
+    expect(paths).not.toContain("linked");
+    expect(paths).not.toContain("linked/secret.txt");
+  });
+
   it("honors gitignore rules for symlinked directory contents in git-backed search", () => {
     const root = createTempDir();
     const repo = join(root, "repo");
-    const target = join(root, "external-target");
+    mkdirSync(repo, { recursive: true });
+    const target = join(repo, "target");
     mkdirSync(target, { recursive: true });
     writeFileSync(join(target, "private.secret"), "private");
     writeFileSync(join(target, "public.txt"), "public");
-    mkdirSync(repo, { recursive: true });
     execFileSync("git", ["init", "-q"], { cwd: repo });
     writeFileSync(join(repo, ".gitignore"), "*.secret\n");
     symlinkSync(target, join(repo, "linked"), "dir");

@@ -23,8 +23,27 @@ interface LoadPreviewDataOptions {
   maxBytes?: number;
 }
 
+function isTerminalControlCode(code: number): boolean {
+  return (
+    (code >= 0 && code <= 8) ||
+    code === 11 ||
+    code === 12 ||
+    (code >= 14 && code <= 31) ||
+    code === 127 ||
+    code === 155
+  );
+}
+
+function escapeTerminalControls(value: string): string {
+  let escaped = "";
+  for (const char of value) {
+    escaped += isTerminalControlCode(char.charCodeAt(0)) ? "�" : char;
+  }
+  return escaped;
+}
+
 function toDisplayPath(value: string): string {
-  return value.replaceAll(path.sep, "/");
+  return escapeTerminalControls(value.replaceAll(path.sep, "/"));
 }
 
 function formatByteSize(bytes: number): string {
@@ -42,7 +61,7 @@ function formatCount(count: number, noun: string): string {
 }
 
 function normalizePreviewLine(line: string): string {
-  return line.replace(/\t/g, "  ");
+  return escapeTerminalControls(line.replace(/\t/g, "  "));
 }
 
 function isBinaryBuffer(buffer: Buffer): boolean {
@@ -106,7 +125,7 @@ function buildDirectoryPreview(
     const items = fs
       .readdirSync(absolutePath, { withFileTypes: true })
       .map((item) => ({
-        label: item.name + (item.isDirectory() ? "/" : ""),
+        label: escapeTerminalControls(item.name) + (item.isDirectory() ? "/" : ""),
         isDirectory: item.isDirectory(),
       }))
       .sort((left, right) => {

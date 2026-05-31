@@ -34,7 +34,7 @@ Notable interactions:
 - In the file picker, `enter` inserts the highlighted item plus any queued selections, while `esc` at the root inserts only queued selections
 - The picker opens as a near-full-height overlay, keeps the Files panel at a fixed height, and renders an internal preview pane below it that fills the remaining height for the highlighted file or directory
 - File previews in the preview pane can use either the picker-local syntect native addon (`previewHighlightMode: "native"`) or Pi's built-in syntax highlighting (`previewHighlightMode: "builtin"`)
-- The file picker's search includes files inside symlinked directories, including when `respectGitignore` is enabled for a git repo
+- The file picker's search includes files inside symlinked directories only when their real path stays under the picker root, including when `respectGitignore` is enabled for a git repo
 - The file picker's search box uses Pi's shared `Input` editing behavior for word/home/end cursor movement and related text editing shortcuts
 - Press `alt+v` to paste clipboard text raw into the editor
 - If the standalone `extensions/caveman` extension is loaded, built-in presets show the active `🪨 caveman` indicator through the dedicated `caveman` segment; custom segment lists must include `caveman` or `extension_statuses` to show it.
@@ -91,9 +91,9 @@ Then add the rest of your config fields:
   - `tabCompletionMode`: `"segment"` or `"bestMatch"` (default `"bestMatch"`)
     - `"segment"`: prefix-only candidate matching, then complete one word-part at a time
     - `"bestMatch"`: use the strongest scoped fuzzy match and replace the whole query in one Tab
-  - `previewHighlightMode`: `"native"` or `"builtin"` (default `"native"`)
-    - `"native"`: use the picker-local Rust/syntect highlighter backed by bat's embedded compiled assets, with Pi built-in highlighting as runtime fallback if the native binary is unavailable
+  - `previewHighlightMode`: `"native"` or `"builtin"` (default `"builtin"`)
     - `"builtin"`: always use Pi's built-in JS highlighter and skip native warmup/load work
+    - `"native"`: use the optional picker-local Rust/syntect highlighter backed by bat's embedded compiled assets, with Pi built-in highlighting as runtime fallback if the native binary is unavailable
 - `editorChrome`: nested editor chrome config
   - `style`: `classic` or `amp` (default `classic`); `classic` preserves the existing editor chrome. `amp` uses rounded Amp-style editor borders in normal and fixed-editor mode, keeps status-bar `leftSegments` and `rightSegments` split across the top border with border-line fill between them, moves configured `path`/`git` status segments to the right-aligned bottom border, keeps an empty Amp frame when `statusBar.enabled` is `false`, and falls back to classic editor lines in very narrow terminals. It does not add Amp non-editor UI, color config, or other Amp features.
 - `statusBar`: nested status-bar config
@@ -139,7 +139,7 @@ Then add the rest of your config fields:
     "allowFolderSelection": true,
     "skipPatterns": ["node_modules"],
     "tabCompletionMode": "bestMatch",
-    "previewHighlightMode": "native"
+    "previewHighlightMode": "builtin"
   },
   "statusBar": {
     "enabled": true,

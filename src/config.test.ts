@@ -408,6 +408,32 @@ describe("pieditor config", () => {
     }
   });
 
+  it("reports invalid config files to the UI boundary", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "pieditor-"));
+    const homeDir = join(tempRoot, "home");
+    const cwd = join(tempRoot, "project");
+    const projectConfigPath = join(cwd, ".pi", "pieditor.json");
+    const errors: string[] = [];
+
+    mkdirSync(dirname(projectConfigPath), { recursive: true });
+    writeFileSync(projectConfigPath, "{not-json", "utf-8");
+
+    try {
+      const config = loadConfig({
+        homeDir,
+        cwd,
+        onConfigError: (message) => errors.push(message),
+      });
+
+      expect(config.filePicker).toEqual(DEFAULT_FILE_PICKER_CONFIG);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("Invalid pieditor config");
+      expect(errors[0]).toContain(projectConfigPath);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("detects project fixed editor enabled overrides", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "pieditor-"));
     const cwd = join(tempRoot, "project");
