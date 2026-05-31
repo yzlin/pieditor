@@ -24,7 +24,6 @@
     "configuration_schema.json",
     "config.json.example",
     "docs",
-    "native/syntect-picker-preview",
     "README.md",
     "LICENSE"
   ],
@@ -38,7 +37,6 @@
     "build": "bun run clean && tsc -p tsconfig.json && bun run scripts/copy-assets.mjs",
     "build:syntect-picker-preview": "node native/syntect-picker-preview/scripts/build.mjs",
     "check": "biome check .",
-    "integration:supa-pi": "node scripts/integration-supa-pi-tarball.mjs",
     "clean": "rm -rf dist types schema"
   },
   "peerDependencies": {
