@@ -112,10 +112,30 @@ Then add the rest of your config fields:
     - `git.showBranch`, `git.showStaged`, `git.showUnstaged`, `git.showUntracked`: booleans
     - `time.format`: `12h` or `24h`
     - `time.showSeconds`: boolean
-  - icon mode: Nerd Font icons are on by default; set `POWERLINE_NERD_FONTS=0` before launching Pi to force ASCII fallbacks
-  - supported segment ids: `pi`, `model`, `path`, `git`, `token_in`, `token_out`, `token_total`, `cost`, `context_pct`, `context_total`, `time_spent`, `time`, `session`, `hostname`, `cache_read`, `cache_write`, `thinking`, `caveman`, `extension_statuses`
-  - `caveman` renders the generic extension status key `caveman`; `extension_statuses` suppresses that key when the dedicated `caveman` segment is configured
-  - `model` appends Fast Mode's generic extension status key `fast` as compact `⚡` or `⚡*` without a dot separator; `extension_statuses` suppresses `fast` when `model` is configured
+  - icon mode: Nerd Font icons are on by default; set `POWERLINE_NERD_FONTS=0` before launching Pi to force ASCII fallbacks. The examples below use ASCII fallback icons.
+  - supported segment ids:
+
+    | id | visual example | description |
+    | --- | --- | --- |
+    | `pi` | `π` | Pi mark. Hidden when the active icon set has no Pi icon. |
+    | `model` | `✦ sonnet ⚡ · [med]` | Active model name. May append thinking level when `model.showThinkingLevel` is enabled. If the standalone `extensions/fast` extension is loaded, also appends Fast Mode's `fast` status as compact `⚡` or `⚡*`; `extension_statuses` suppresses `fast` when `model` is configured. |
+    | `path` | `▣ pieditor` | Current working directory. Controlled by `path.mode` and `path.maxLength`. |
+    | `git` | `⎇ main *2 +1 ?3` | Current git branch and optional dirty counters for unstaged, staged, and untracked files. |
+    | `token_in` | `↙ 1.2k` | Input token count. Hidden when zero. |
+    | `token_out` | `↗ 830` | Output token count. Hidden when zero. |
+    | `token_total` | `◎ 2.0k` | Total token count across input, output, cache read, and cache write. Hidden when zero. |
+    | `cost` | `$0.03` or `(sub)` | Session cost, or subscription marker when the model uses OAuth. Hidden when neither applies. |
+    | `context_pct` | `◫ 42.0%/200k` | Context usage percent plus context window size. Warn/error colors apply above 70%/90%. Hidden when context size is unknown. |
+    | `context_total` | `◫ 200k` | Context window size. Hidden when unknown. |
+    | `time_spent` | `◷ 3m12s` | Elapsed session time. Hidden during the first second. |
+    | `time` | `◷ 14:05` or `◷ 2:05pm` | Current wall-clock time. Controlled by `time.format` and `time.showSeconds`. |
+    | `session` | `◇ abc12345` | Current session id prefix, or `new` before a session id exists. |
+    | `hostname` | `@ macbook` | Hostname before the first dot. |
+    | `cache_read` | `⟳ ↙ 4.1k` | Cache read token count. Hidden when zero. |
+    | `cache_write` | `⟳ ↗ 900` | Cache write token count. Hidden when zero. |
+    | `thinking` | `think:med` | Current thinking level as `off`, `min`, `low`, `med`, `high`, or `xhigh`. |
+    | `caveman` | `🪨 caveman` | Standalone `extensions/caveman` integration. Renders generic extension status key `caveman`; hidden unless that extension sets the status. `extension_statuses` suppresses `caveman` when this dedicated segment is configured. |
+    | `extension_statuses` | `🧪 tests · sync` | Generic fallback bucket for extension statuses set via `ctx.ui.setStatus(key, text)`. Shows statuses that do not have a configured dedicated segment; hides empty values and values starting with `[`. |
 
 ```json
 {
