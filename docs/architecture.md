@@ -1,7 +1,7 @@
 # pieditor architecture
 
 read_when:
-- refactoring `extensions/pieditor/index.ts`, `composition.ts`, or editor lifecycle wiring
+- refactoring `src/index.ts`, `src/composition.ts`, or editor lifecycle wiring
 - changing editor chrome or file-picker runtime/config behavior
 - changing status-bar rendering, footer integration, or git invalidation
 - adding another feature that wants to own `setEditorComponent()`
@@ -23,14 +23,14 @@ Current feature areas:
 
 ## Ownership boundaries
 
-### `index.ts`
+### `src/index.ts`
 Thin extension entrypoint.
 Owns:
 - Pi event registration
 - shortcut registration
 - delegation into composition runtime
 
-### `composition.ts`
+### `src/composition.ts`
 Runtime wiring boundary.
 Owns:
 - active context/editor/footer refs
@@ -40,7 +40,7 @@ Owns:
 - git invalidation triggers from tool/user bash events
 - fixed editor compositor lifecycle when `fixedEditor.enabled` is true
 
-### `editor/*`
+### `src/editor/*`
 Editor behavior only.
 Owns:
 - submit interception and command remap
@@ -48,16 +48,16 @@ Owns:
 - autocomplete wrapping
 - status-bar insertion above the native editor border
 
-### `file-picker/*`
+### `src/file-picker/*`
 Picker-specific UI and data flow.
 Owns:
 - file listing/filtering/preview/highlighting
 - picker-local state and option toggles
 - converting selections into `@path` refs
 
-`file-picker/runtime.ts` creates the picker runtime explicitly. This preserves current effective behavior while avoiding import-time config/state initialization.
+`src/file-picker/runtime.ts` creates the picker runtime explicitly. This preserves current effective behavior while avoiding import-time config/state initialization.
 
-### `fixed-editor/*`
+### `src/fixed-editor/*`
 
 Fixed editor rendering/compositor helpers only.
 Owns:
@@ -65,9 +65,9 @@ Owns:
 - terminal split compositor primitives
 - root scrollback visual scrollbar decoration: one rightmost-column gutter, dim gray `█` track, bright white `█` thumb
 
-Runtime lifecycle installation and send-triggered root scrollback bottom jumps are owned by `composition.ts` when that integration is enabled.
+Runtime lifecycle installation and send-triggered root scrollback bottom jumps are owned by `src/composition.ts` when that integration is enabled.
 
-### `status-bar/*`
+### `src/status-bar/*`
 Status bar rendering.
 Owns:
 - context collection
@@ -79,7 +79,7 @@ Owns:
 
 The dedicated `caveman` segment is an integration point for the standalone `extensions/caveman` extension. It reads the generic extension status key `caveman` from footer data instead of importing caveman state directly.
 
-### `shell/*`
+### `src/shell/*`
 Shell completion providers and shell detection.
 
 ## Event sources

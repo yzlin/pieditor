@@ -34,36 +34,62 @@ copyFileSync(sourceLibrary, outputFile);
 console.log(`Wrote ${bindingName}`);
 
 function runCargoBuild(target, isDebug) {
-  const args = ["build", "--target", target];
+  const cargoArgs = ["build", "--target", target];
   if (!isDebug) {
-    args.push("--release");
+    cargoArgs.push("--release");
   }
 
-  const result = spawnSync("cargo", args, {
+  const result = runCargoCommand(cargoArgs);
+
+  if (result.status !== 0) {
+    throw new Error(
+      `${result.label} failed with code ${result.status ?? 1}`
+    );
+  }
+}
+
+function runCargoCommand(cargoArgs) {
+  const cargo = spawnSync("cargo", cargoArgs, {
     cwd: packageDir,
     stdio: "inherit",
   });
 
-  if (result.status !== 0) {
-    throw new Error(
-      `cargo ${args.join(" ")} failed with code ${result.status ?? 1}`
-    );
+  if (cargo.error?.code !== "ENOENT") {
+    return { label: `cargo ${cargoArgs.join(" ")}`, status: cargo.status };
   }
+
+  const rustupArgs = ["run", "stable", "cargo", ...cargoArgs];
+  const rustup = spawnSync("rustup", rustupArgs, {
+    cwd: packageDir,
+    env: { ...process.env, ...resolveRustcEnv() },
+    stdio: "inherit",
+  });
+
+  return { label: `rustup ${rustupArgs.join(" ")}`, status: rustup.status };
+}
+
+function resolveRustcEnv() {
+  if (process.env.RUSTC) {
+    return {};
+  }
+
+  const rustc = spawnSync("rustup", ["which", "rustc"], {
+    encoding: "utf8",
+  });
+  if (rustc.status !== 0) {
+    return {};
+  }
+
+  return { RUSTC: rustc.stdout.trim() };
 }
 
 function resolveTargetTriple() {
   switch (`${process.platform}:${process.arch}`) {
     case "darwin:arm64":
       return "aarch64-apple-darwin";
-    case "darwin:x64":
-      return "x86_64-apple-darwin";
-    case "linux:arm64":
-      return "aarch64-unknown-linux-gnu";
-    case "linux:x64":
-      return "x86_64-unknown-linux-gnu";
     default:
       throw new Error(
-        `Unsupported build target ${process.platform}/${process.arch}; this addon currently supports macOS + Linux on x64/arm64 only.`
+        `Unsupported build target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`
       );
   }
 }
@@ -72,15 +98,9 @@ function resolveBindingName() {
   switch (`${process.platform}:${process.arch}`) {
     case "darwin:arm64":
       return "syntect-picker-preview.darwin-arm64.node";
-    case "darwin:x64":
-      return "syntect-picker-preview.darwin-x64.node";
-    case "linux:arm64":
-      return "syntect-picker-preview.linux-arm64.node";
-    case "linux:x64":
-      return "syntect-picker-preview.linux-x64.node";
     default:
       throw new Error(
-        `Unsupported runtime target ${process.platform}/${process.arch}; this addon currently supports macOS + Linux on x64/arm64 only.`
+        `Unsupported runtime target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`
       );
   }
 }

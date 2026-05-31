@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: Publish npm package and GitHub Release
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js for npm provenance
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check changelog and bump package version
+        id: release
+        run: node scripts/prepare-release.mjs
+
+      - name: Build package
+        run: bun run build
+
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.tag }}
+          body_path: release-notes.md
+          target_commitish: ${{ github.sha }}

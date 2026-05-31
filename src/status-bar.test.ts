@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 import type {
   ExtensionContext,
   ReadonlyFooterDataProvider,
+  Theme,
 } from "@earendil-works/pi-coding-agent";
 
 import { buildAmpStatusLayout, renderStatusBarLine } from "./status-bar";
@@ -59,7 +60,7 @@ function createStatusBarHarness() {
     fg(_color: string, text: string) {
       return text;
     },
-  } as any;
+  } as unknown as Theme;
 
   return { ctx, footerData, theme };
 }
@@ -134,11 +135,11 @@ describe("status bar", () => {
 
       expect(layout.topLeftContent).toContain("test-model");
       expect(layout.topRightContent).toContain("12.5%/200k");
-      expect(layout.topLeftContent).not.toContain("supa-pi");
+      expect(layout.topLeftContent).not.toContain("pieditor");
       expect(layout.topRightContent).not.toContain("main");
-      expect(layout.bottomContent).toContain("supa-pi");
+      expect(layout.bottomContent).toContain("pieditor");
       expect(layout.bottomContent).toContain("main");
-      expect(layout.bottomContent.indexOf("supa-pi")).toBeLessThan(
+      expect(layout.bottomContent.indexOf("pieditor")).toBeLessThan(
         layout.bottomContent.indexOf("main")
       );
     });
@@ -160,10 +161,10 @@ describe("status bar", () => {
       });
 
       expect(layout.topLeftContent).toContain("test-model");
-      expect(layout.topLeftContent).not.toContain("supa-pi");
+      expect(layout.topLeftContent).not.toContain("pieditor");
       expect(layout.topLeftContent).not.toContain("main");
       expect(layout.topRightContent).toBe("");
-      expect(layout.bottomContent).toContain("supa-pi");
+      expect(layout.bottomContent).toContain("pieditor");
       expect(layout.bottomContent).toContain("main");
     });
 
@@ -186,7 +187,7 @@ describe("status bar", () => {
       expect(layout.topLeftContent).toBe("");
       expect(layout.topRightContent).toContain("test-model");
       expect(layout.topRightContent).not.toContain("main");
-      expect(layout.bottomContent).toContain("supa-pi");
+      expect(layout.bottomContent).toContain("pieditor");
       expect(layout.bottomContent).not.toContain("main");
     });
 
@@ -269,7 +270,7 @@ describe("status bar", () => {
       fg(_color: string, text: string) {
         return text;
       },
-    } as any;
+    } as unknown as Theme;
 
     const line = renderStatusBarLine({
       width: 120,
@@ -335,7 +336,7 @@ describe("status bar", () => {
       fg(_color: string, text: string) {
         return text;
       },
-    } as any;
+    } as unknown as Theme;
 
     const line = renderStatusBarLine({
       width: 40,
@@ -413,7 +414,7 @@ describe("status bar", () => {
         fg(color: string, text: string) {
           return `<${color}:${text}>`;
         },
-      } as any;
+      } as unknown as Theme;
 
       const line = renderStatusBarLine({
         width: 80,
@@ -495,7 +496,7 @@ describe("status bar", () => {
         fg(color: string, text: string) {
           return `<${color}:${text}>`;
         },
-      } as any;
+      } as unknown as Theme;
 
       const line = renderStatusBarLine({
         width: 80,
@@ -578,7 +579,7 @@ describe("status bar", () => {
         fg(_color: string, text: string) {
           return text;
         },
-      } as any;
+      } as unknown as Theme;
 
       const line = renderStatusBarLine({
         width: 40,
@@ -660,7 +661,7 @@ describe("status bar", () => {
         fg(_color: string, text: string) {
           return text;
         },
-      } as any;
+      } as unknown as Theme;
 
       const line = renderStatusBarLine({
         width: 60,
@@ -783,7 +784,7 @@ describe("status bar", () => {
       fg(_color: string, text: string) {
         return text;
       },
-    } as any;
+    } as unknown as Theme;
 
     const line = renderStatusBarLine({
       width: 120,
@@ -849,7 +850,7 @@ describe("status bar", () => {
       fg(_color: string, text: string) {
         return text;
       },
-    } as any;
+    } as unknown as Theme;
 
     const line = renderStatusBarLine({
       width: 120,
@@ -915,7 +916,7 @@ describe("status bar", () => {
       fg(_color: string, text: string) {
         return text;
       },
-    } as any;
+    } as unknown as Theme;
 
     const line = renderStatusBarLine({
       width: 30,

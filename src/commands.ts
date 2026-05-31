@@ -176,7 +176,7 @@ export function registerPieditorCommands(
         completion.value.startsWith(prefix)
       );
     },
-    handler: (args: string, ctx: ExtensionCommandContext) => {
+    handler: async (args: string, ctx: ExtensionCommandContext) => {
       const { topic, action } = parsePieditorCommand(args);
 
       if (topic !== "fixed-editor") {

@@ -17,7 +17,10 @@ import {
   attachReplacementLeaseCompositor,
   clearReplacementSurfaceLeases,
 } from "./fixed-editor/replacement-lease.js";
-import { TerminalSplitCompositor } from "./fixed-editor/terminal-split.js";
+import {
+  TerminalSplitCompositor,
+  type TuiLike,
+} from "./fixed-editor/terminal-split.js";
 import { invalidateGitBranch, invalidateGitStatus } from "./status-bar-git.js";
 
 type FixedEditorConfigListener = (config: FixedEditorRuntimeConfig) => void;
@@ -147,7 +150,7 @@ export function createPieditorComposition(
     let compositor: TerminalSplitCompositor | null = null;
     try {
       compositor = new TerminalSplitCompositor({
-        tui,
+        tui: tui as unknown as TuiLike,
         terminal,
         mouseScroll: runtime.fixedEditorConfig.mouseScroll,
         scrollUpShortcuts: runtime.fixedEditorConfig.scrollUpShortcuts,

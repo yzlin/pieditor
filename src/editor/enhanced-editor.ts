@@ -71,6 +71,7 @@ export class EnhancedEditor extends CustomEditor {
 
   private readonly shell: ShellInfo;
   private readonly ui: ExtensionUIContext;
+  private readonly editorTheme: EditorTheme;
   private readonly options: EnhancedEditorOptions;
   private readonly keybindingsManager: KeybindingsManager;
   private editorRenderCache: EditorRenderCache | null = null;
@@ -86,6 +87,7 @@ export class EnhancedEditor extends CustomEditor {
     super(tui, theme, keybindings);
     this.tuiInstance = tui;
     this.ui = ui;
+    this.editorTheme = theme;
     this.options = options;
     this.keybindingsManager = keybindingsManager;
     this.shell = findCompletionShell();
@@ -229,7 +231,7 @@ export class EnhancedEditor extends CustomEditor {
           width,
           editorLines: baseEditorLines,
           labels: this.buildAmpLabels(),
-          borderColor: (value) => this.theme.borderColor(value),
+          borderColor: (value) => this.editorTheme.borderColor(value),
         }),
       };
     }

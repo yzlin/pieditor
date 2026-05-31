@@ -60,8 +60,8 @@ function parsePreviewLine(line: string): ParsedPreviewLine | null {
   };
 }
 
-function getNativeBindingModuleSpecifier(): string {
-  return "../native/syntect-picker-preview/index.js";
+function getNativeBindingModuleSpecifiers(): string[] {
+  return ["../native/syntect-picker-preview/index.js", "../../native/syntect-picker-preview/index.js"];
 }
 
 function defaultLoadNativeBinding(): NativeHighlightBinding | null {
@@ -69,17 +69,21 @@ function defaultLoadNativeBinding(): NativeHighlightBinding | null {
     return nativeBindingCache;
   }
 
-  try {
-    const require = createRequire(import.meta.url);
-    const nativeModule = require(getNativeBindingModuleSpecifier()) as {
-      getNativeBinding?: () => NativeHighlightBinding;
-    };
-    nativeBindingCache = nativeModule.getNativeBinding?.() ?? null;
-  } catch {
-    nativeBindingCache = null;
+  const require = createRequire(import.meta.url);
+  for (const specifier of getNativeBindingModuleSpecifiers()) {
+    try {
+      const nativeModule = require(specifier) as {
+        getNativeBinding?: () => NativeHighlightBinding;
+      };
+      const binding = nativeModule.getNativeBinding?.() ?? null;
+      nativeBindingCache = binding;
+      return binding;
+    } catch {
+      nativeBindingCache = null;
+    }
   }
 
-  return nativeBindingCache;
+  return null;
 }
 
 function loadNativeBinding(): NativeHighlightBinding | null {
@@ -267,12 +271,15 @@ export function warmPreviewHighlighter(
 }
 
 export function resolveNativeHighlightBindingPathForTests(): string | null {
-  try {
-    const require = createRequire(import.meta.url);
-    return require.resolve(getNativeBindingModuleSpecifier());
-  } catch {
-    return null;
+  const require = createRequire(import.meta.url);
+  for (const specifier of getNativeBindingModuleSpecifiers()) {
+    try {
+      return require.resolve(specifier);
+    } catch {
+      // Try the next runtime/source-layout candidate.
+    }
   }
+  return null;
 }
 
 export function setNativeHighlightBindingLoaderForTests(

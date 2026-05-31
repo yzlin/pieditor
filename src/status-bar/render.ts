@@ -202,8 +202,11 @@ export function buildStatusBarContext(
   const contextWindow =
     contextUsage?.contextWindow ?? model?.contextWindow ?? 0;
   const providerBranch = footerData?.getGitBranch() ?? null;
+  const modelRegistry = ctx.modelRegistry as {
+    isUsingOAuth?: (model: NonNullable<ExtensionContext["model"]>) => boolean;
+  };
   const usingSubscription = model
-    ? ((ctx.modelRegistry as unknown)?.isUsingOAuth?.(model) ?? false)
+    ? (modelRegistry.isUsingOAuth?.(model) ?? false)
     : false;
 
   const hasDedicatedCavemanSegment =

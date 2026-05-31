@@ -166,9 +166,7 @@ describe("file picker native preview highlighting", () => {
 
     expect(resolvedPath).not.toBeNull();
     expect(
-      resolvedPath?.endsWith(
-        "extensions/pieditor/native/syntect-picker-preview/index.js"
-      )
+      resolvedPath?.endsWith("native/syntect-picker-preview/index.js")
     ).toBe(true);
   });
 

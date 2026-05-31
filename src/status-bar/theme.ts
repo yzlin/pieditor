@@ -28,7 +28,7 @@ const RAINBOW_COLORS = [
   "#00afaf",
   "#178fb9",
   "#b281d6",
-];
+] as const;
 
 const warnedInvalidThemeColors = new Set<string>();
 
@@ -99,7 +99,8 @@ export function rainbow(text: string): string {
       result += char;
       continue;
     }
-    result += `${hexToAnsi(RAINBOW_COLORS[colorIndex % RAINBOW_COLORS.length]!)}${char}`;
+    const color = RAINBOW_COLORS[colorIndex % RAINBOW_COLORS.length] ?? RAINBOW_COLORS[0];
+    result += `${hexToAnsi(color)}${char}`;
     colorIndex++;
   }
   return `${result}\x1b[0m`;

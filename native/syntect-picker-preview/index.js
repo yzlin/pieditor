@@ -5,11 +5,6 @@ const { join } = require("node:path");
 const bindingNames = {
   darwin: {
     arm64: "syntect-picker-preview.darwin-arm64.node",
-    x64: "syntect-picker-preview.darwin-x64.node",
-  },
-  linux: {
-    arm64: "syntect-picker-preview.linux-arm64.node",
-    x64: "syntect-picker-preview.linux-x64.node",
   },
 };
 

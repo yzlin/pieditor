@@ -13,7 +13,12 @@ export function remapCommand(
     return text;
   }
 
-  const [, cmd, rest] = match;
-  const target = commandRemap[cmd!];
+  const cmd = match[1];
+  const rest = match[2] ?? "";
+  if (!cmd) {
+    return text;
+  }
+
+  const target = commandRemap[cmd];
   return target ? `/${target}${rest}` : text;
 }

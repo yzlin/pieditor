@@ -56,9 +56,9 @@ export class FileBrowserComponent {
   private readonly minPreviewPaneHeight = 11;
   private readonly cwdRoot: string;
   private currentDir: string;
-  private allEntries: FileEntry[];
-  private allFilesRecursive: FileEntry[];
-  private filtered: FileEntry[];
+  private allEntries: FileEntry[] = [];
+  private allFilesRecursive: FileEntry[] = [];
+  private filtered: FileEntry[] = [];
   private selected = 0;
   private readonly searchInput: Input;
   private query = "";

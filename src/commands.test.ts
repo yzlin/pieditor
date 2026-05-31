@@ -15,6 +15,7 @@ import { registerPieditorCommands } from "./commands";
 import { DEFAULT_FIXED_EDITOR_CONFIG } from "./config/fixed-editor";
 import {
   acquireReplacementSurfaceLease,
+  attachReplacementLeaseCompositor,
   clearReplacementSurfaceLeases,
 } from "./fixed-editor/replacement-lease";
 
@@ -79,6 +80,7 @@ function createHarness(homeDir?: string) {
 
 afterEach(() => {
   clearReplacementSurfaceLeases();
+  attachReplacementLeaseCompositor(null);
   process.env.HOME = originalHome;
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });

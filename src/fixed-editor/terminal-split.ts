@@ -7,6 +7,7 @@
  */
 import {
   isKeyRelease,
+  type KeyId,
   matchesKey,
   truncateToWidth,
   visibleWidth,
@@ -322,7 +323,7 @@ function matchesConfiguredShortcut(data: string, shortcut: string): boolean {
     return SUPER_SHORTCUT_PATTERNS.get(normalizedShortcut)?.test(data) ?? false;
   }
 
-  return matchesKey(data, shortcut);
+  return matchesKey(data, shortcut as KeyId);
 }
 
 function matchesAnyConfiguredShortcut(
@@ -883,7 +884,7 @@ export class TerminalSplitCompositor {
           this.handleInput(data)
         );
         if (typeof removeInputListener === "function") {
-          this.removeInputListener = removeInputListener;
+          this.removeInputListener = removeInputListener as () => void;
         }
       }
 
@@ -1301,10 +1302,15 @@ export class TerminalSplitCompositor {
 
   private renderOverlayRoot(width: number): string[] {
     const rawRows = this.getRawRows();
+    const originalRender = this.originalRender;
+    if (!originalRender) {
+      return [];
+    }
+
     const cluster = this.getCluster(width, rawRows, true);
     const reservedRows =
       this.patchedRenders.length > 0 ? cluster.lines.length : 0;
-    const lines = this.originalRender(width);
+    const lines = originalRender(width);
     if (reservedRows === 0) {
       return lines.map((line) => sanitizeOverlayBaseLine(line, width));
     }

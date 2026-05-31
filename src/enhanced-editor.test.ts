@@ -5,7 +5,7 @@ import type {
   ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
 import { CustomEditor } from "@earendil-works/pi-coding-agent";
-import type { AutocompleteItem } from "@earendil-works/pi-tui";
+import type { AutocompleteItem, AutocompleteProvider } from "@earendil-works/pi-tui";
 
 import { renderAmpEditorChrome } from "./editor/amp-chrome";
 import { matchesInterrupt } from "./editor/double-escape";
@@ -20,6 +20,15 @@ const BOTTOM_SCROLL_COLOR_PATTERN = new RegExp(
   `${ESC}\\[2m─── ↓ 3 more\\s+${ESC}\\[0m`,
   "u"
 );
+
+type EditorInternals = {
+  submitValue(): void;
+  autocompleteProvider: AutocompleteProvider;
+};
+
+function editorInternals(editor: EnhancedEditor): EditorInternals {
+  return editor as unknown as EditorInternals;
+}
 
 function createEditor(
   commandRemap: Record<string, string>,
@@ -42,12 +51,12 @@ function createEditor(
     terminal: {
       rows: 24,
     },
-  } as any;
+  } as unknown as ConstructorParameters<typeof EnhancedEditor>[0];
 
   const theme = {
     borderColor: options?.borderColor ?? ((value: string) => value),
     selectList: {},
-  } as any;
+  } as unknown as ConstructorParameters<typeof EnhancedEditor>[1];
 
   const keybindings = {
     matches(_data: string, key: string) {
@@ -55,7 +64,7 @@ function createEditor(
         ? Boolean(options?.interruptMatches)
         : false;
     },
-  } as any;
+  } as unknown as ConstructorParameters<typeof EnhancedEditor>[2];
 
   const ui = {
     notify() {
@@ -66,7 +75,7 @@ function createEditor(
         return text;
       },
     },
-  } as any;
+  } as unknown as ConstructorParameters<typeof EnhancedEditor>[3];
 
   return new EnhancedEditor(tui, theme, keybindings, ui, {
     getDoubleEscapeCommand:
@@ -158,7 +167,7 @@ describe("EnhancedEditor command remap", () => {
     };
 
     editor.setText("/tree");
-    (editor as any).submitValue();
+    editorInternals(editor).submitValue();
 
     expect(submitted).toEqual(["/anycopy"]);
     expect(editor.getText()).toBe("");
@@ -173,7 +182,7 @@ describe("EnhancedEditor command remap", () => {
     };
 
     editor.setText("/tree src --depth 2");
-    (editor as any).submitValue();
+    editorInternals(editor).submitValue();
 
     expect(submitted).toBe("/anycopy src --depth 2");
   });
@@ -186,7 +195,10 @@ describe("EnhancedEditor command remap", () => {
       },
     };
 
-    expect(matchesInterrupt(keybindings as any, "\x1b")).toBe(true);
+    expect(matchesInterrupt(
+        keybindings as unknown as Parameters<typeof matchesInterrupt>[0],
+        "\x1b"
+      )).toBe(true);
   });
 
   it("forwards autocomplete request options to the wrapped provider", async () => {
@@ -218,9 +230,9 @@ describe("EnhancedEditor command remap", () => {
       ) {
         return { lines, cursorLine, cursorCol };
       },
-    } as any);
+    });
 
-    await (editor as any).autocompleteProvider.getSuggestions(["/tree"], 0, 5, {
+    await editorInternals(editor).autocompleteProvider.getSuggestions(["/tree"], 0, 5, {
       signal,
       force: true,
     });
