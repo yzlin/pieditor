@@ -64,8 +64,13 @@ Owns:
 - fixed editor cluster rendering primitives
 - terminal split compositor primitives
 - root scrollback visual scrollbar decoration: one rightmost-column gutter, dim gray `█` track, bright white `█` thumb
+- above-editor lease surfaces used for fixed-mode transient UI, including the local `ui.select()` / `ui.confirm()` shim
 
-Runtime lifecycle installation and send-triggered root scrollback bottom jumps are owned by `src/composition.ts` when that integration is enabled.
+Runtime lifecycle installation, send-triggered root scrollback bottom jumps, and `ui.select()` / `ui.confirm()` shim wiring are owned by `src/composition.ts` when that integration is enabled. The shim is scoped to this extension context, only takes over while the fixed compositor is installed, and falls back to Pi's original prompt methods otherwise.
+
+The fixed editor compositor also lifts focused Pi built-in selector components above the fixed editor by detecting focused TUI components whose constructor name ends with `SelectorComponent`. This is an intentional private-internals compatibility shim for built-ins such as `/model`; keep the detector narrow and covered by compositor tests.
+
+Editor popup rows, including slash-command autocomplete rows appended after the editor border, are reordered above the fixed editor frame in `src/fixed-editor/cluster.ts`. Preserve this ordering when changing editor row budgeting.
 
 ### `src/status-bar/*`
 Status bar rendering.

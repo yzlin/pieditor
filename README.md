@@ -45,6 +45,9 @@ Notable interactions:
 - Fixed editor mode reserves the root scrollback viewport's rightmost column for a visual-only scrollbar: dim gray `█` track, bright white `█` thumb; it has no configuration and stays out of overlay rendering
 - When a user message starts or a follow-up queue update arrives, fixed editor mode jumps the root scrollback back to the bottom; manual root scrollback remains available between sends
 - Internal local extensions that temporarily replace the editor/custom UI surface can acquire a replacement-surface lease so fixed editor mode stands down while the replacement UI is active
+- While fixed editor mode is active, `ui.select()` and `ui.confirm()` prompts from this extension are rendered in a small above-editor panel instead of replacing the fixed editor; arrow keys or `j`/`k` move selection, `enter` accepts, and `esc`/`ctrl+c` cancels
+- Pi built-in selector components such as `/model` are also lifted above the fixed editor while they have focus
+- Editor popup rows such as slash-command autocomplete are kept above the fixed editor instead of below its border
 
 ## Configuration
 

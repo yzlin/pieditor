@@ -12,11 +12,18 @@ import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { type FixedEditorRuntimeConfig, loadConfig } from "./config.js";
 import { EnhancedEditor } from "./enhanced-editor.js";
 import { warmPreviewHighlighter } from "./file-picker-highlight.js";
+import {
+  attachAboveEditorLeaseCompositor,
+  clearAboveEditorSurfaceLeases,
+} from "./fixed-editor/above-editor-lease.js";
 import { renderFixedEditorCluster } from "./fixed-editor/cluster.js";
 import {
   attachReplacementLeaseCompositor,
   clearReplacementSurfaceLeases,
+  getActiveReplacementLeaseDiagnostics,
+  onReplacementSurfaceLeaseChange,
 } from "./fixed-editor/replacement-lease.js";
+import { FixedSelectConfirmShim } from "./fixed-editor/select-confirm-shim.js";
 import {
   TerminalSplitCompositor,
   type TuiLike,
@@ -41,6 +48,10 @@ interface PieditorRuntime {
   fixedEditorConfig: FixedEditorRuntimeConfig;
   fixedEditorConfigListeners: Set<FixedEditorConfigListener>;
   fixedEditorInstallFailed: boolean;
+  fixedSelectConfirmShim: FixedSelectConfirmShim | null;
+  originalConfirm: ExtensionContext["ui"]["confirm"] | null;
+  originalSelect: ExtensionContext["ui"]["select"] | null;
+  removeReplacementLeaseListener: (() => void) | null;
 }
 
 const GIT_BRANCH_PATTERNS = [
@@ -88,6 +99,10 @@ export function createPieditorComposition(
     fixedEditorConfig: initialConfig.fixedEditor,
     fixedEditorConfigListeners: new Set(),
     fixedEditorInstallFailed: false,
+    fixedSelectConfirmShim: null,
+    originalConfirm: null,
+    originalSelect: null,
+    removeReplacementLeaseListener: null,
   };
 
   function emitFixedEditorConfigChanged(): void {
@@ -105,7 +120,9 @@ export function createPieditorComposition(
   }
 
   function disposeFixedEditorCompositor(): void {
+    runtime.fixedSelectConfirmShim?.cancelPendingPrompts();
     attachReplacementLeaseCompositor(null);
+    attachAboveEditorLeaseCompositor(null);
     runtime.fixedEditorCompositor?.dispose({
       resetExtendedKeyboardModes: true,
     });
@@ -176,6 +193,7 @@ export function createPieditorComposition(
       compositor.hideRenderable(editor);
       runtime.fixedEditorCompositor = compositor;
       attachReplacementLeaseCompositor(compositor);
+      attachAboveEditorLeaseCompositor(compositor);
       tui.requestRender();
     } catch {
       compositor?.dispose({ resetExtendedKeyboardModes: true });
@@ -191,6 +209,52 @@ export function createPieditorComposition(
         runtime.activeFooterTui &&
         runtime.activeEditorTui.terminal
     );
+  }
+
+  function hasActiveReplacementSurfaceLease(): boolean {
+    return getActiveReplacementLeaseDiagnostics().length > 0;
+  }
+
+  function canUseFixedSelectConfirmShim(): boolean {
+    return (
+      runtime.fixedEditorCompositor?.canRenderAboveEditorSurface() === true &&
+      !hasActiveReplacementSurfaceLease()
+    );
+  }
+
+  function attachFixedSelectConfirmShim(ctx: ExtensionContext): void {
+    if (runtime.originalSelect && runtime.originalConfirm) {
+      return;
+    }
+
+    runtime.originalSelect = ctx.ui.select;
+    runtime.originalConfirm = ctx.ui.confirm;
+    const shim = new FixedSelectConfirmShim(
+      ctx.ui,
+      canUseFixedSelectConfirmShim,
+      runtime.originalSelect,
+      runtime.originalConfirm
+    );
+    runtime.fixedSelectConfirmShim = shim;
+    runtime.removeReplacementLeaseListener = onReplacementSurfaceLeaseChange(() => {
+      if (hasActiveReplacementSurfaceLease()) {
+        shim.cancelPendingPrompts();
+      }
+    });
+    ctx.ui.select = shim.select;
+    ctx.ui.confirm = shim.confirm;
+  }
+
+  function detachFixedSelectConfirmShim(): void {
+    if (runtime.activeContext && runtime.originalSelect && runtime.originalConfirm) {
+      runtime.activeContext.ui.select = runtime.originalSelect;
+      runtime.activeContext.ui.confirm = runtime.originalConfirm;
+    }
+    runtime.originalSelect = null;
+    runtime.originalConfirm = null;
+    runtime.fixedSelectConfirmShim = null;
+    runtime.removeReplacementLeaseListener?.();
+    runtime.removeReplacementLeaseListener = null;
   }
 
   function reconcileFixedEditorCompositor(): void {
@@ -211,6 +275,7 @@ export function createPieditorComposition(
       }
 
       runtime.activeContext = ctx;
+      attachFixedSelectConfirmShim(ctx);
       const config = loadConfig({
         onConfigError: (message) => ctx.ui.notify(message, "error"),
       });
@@ -313,8 +378,10 @@ export function createPieditorComposition(
     },
 
     detachEditor(): void {
+      clearAboveEditorSurfaceLeases();
       clearReplacementSurfaceLeases();
       disposeFixedEditorCompositor();
+      detachFixedSelectConfirmShim();
       runtime.activeContext = null;
       runtime.activeEditor = null;
       runtime.activeEditorTui = null;

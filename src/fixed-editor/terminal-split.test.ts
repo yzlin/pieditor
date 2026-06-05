@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
+import {
+  acquireAboveEditorSurfaceLease,
+  attachAboveEditorLeaseCompositor,
+  clearAboveEditorSurfaceLeases,
+} from "./above-editor-lease";
 import type { FixedEditorClusterRender } from "./cluster";
 import {
   acquireReplacementSurfaceLease,
@@ -16,6 +21,12 @@ import {
   TerminalSplitCompositor,
   type TuiLike,
 } from "./terminal-split";
+
+class ModelSelectorComponent {
+  render(_width: number): string[] {
+    return ["model-selector", "model-option"];
+  }
+}
 
 class MockTerminal implements TerminalLike {
   columns = 20;
@@ -101,6 +112,8 @@ function createCompositor(
     mouseScroll?: boolean;
     hasHardwareCursor?: boolean;
     onCopySelection?: (text: string) => void;
+    scrollDownShortcuts?: string[];
+    scrollUpShortcuts?: string[];
     renderCluster?: (
       width: number,
       terminalRows: number
@@ -121,6 +134,8 @@ function createCompositor(
     tui,
     terminal,
     mouseScroll: options.mouseScroll,
+    scrollDownShortcuts: options.scrollDownShortcuts,
+    scrollUpShortcuts: options.scrollUpShortcuts,
     onCopySelection: options.onCopySelection,
     getShowHardwareCursor: () => options.hasHardwareCursor ?? false,
     renderCluster: options.renderCluster ?? (() => cluster),
@@ -131,6 +146,8 @@ function createCompositor(
 
 describe("terminal split compositor", () => {
   afterEach(() => {
+    clearAboveEditorSurfaceLeases();
+    attachAboveEditorLeaseCompositor(null);
     clearReplacementSurfaceLeases();
     attachReplacementLeaseCompositor(null);
   });
@@ -230,6 +247,183 @@ describe("terminal split compositor", () => {
     expect(lines?.every((line) => line.endsWith(ROOT_SCROLLBAR_TRACK))).toBe(
       true
     );
+  });
+
+  it("restores inherited selector render while lifting it", () => {
+    const selector = new ModelSelectorComponent();
+    const tui = createTui();
+    tui.render = (width) => ["root", ...selector.render(width)];
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal: new MockTerminal(6),
+      renderCluster: () => ({ lines: ["editor"], cursor: null }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = selector;
+    const originalRender = selector.render;
+    expect(Object.hasOwn(selector, "render")).toBe(false);
+
+    tui.doRender?.();
+    tui.doRender?.();
+
+    expect(Object.hasOwn(selector, "render")).toBe(false);
+    expect(selector.render).toBe(originalRender);
+  });
+
+  it("restores own selector render descriptor while lifting it", () => {
+    const selector = new ModelSelectorComponent();
+    const ownRender = () => ["own-selector"];
+    Object.defineProperty(selector, "render", {
+      configurable: true,
+      enumerable: true,
+      value: ownRender,
+      writable: true,
+    });
+    const originalDescriptor = Object.getOwnPropertyDescriptor(selector, "render");
+    const tui = createTui();
+    tui.render = (width) => ["root", ...selector.render(width)];
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal: new MockTerminal(6),
+      renderCluster: () => ({ lines: ["editor"], cursor: null }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = selector;
+
+    tui.doRender?.();
+
+    expect(Object.getOwnPropertyDescriptor(selector, "render")).toEqual(
+      originalDescriptor
+    );
+  });
+
+  it("keeps Pi fallback selectors in root while replacement surface is active", () => {
+    const selector = new ModelSelectorComponent();
+    const replacement = { render: () => ["replacement"] };
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    tui.render = (width) => [
+      "root-1",
+      ...selector.render(width),
+      "root-tail",
+    ];
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({ lines: ["editor"], cursor: null }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    attachReplacementLeaseCompositor(compositor);
+    tui.focusedComponent = selector;
+    const lease = acquireReplacementSurfaceLease({
+      owner: "test",
+      id: "replacement",
+      target: replacement,
+    });
+
+    expect(rootContent(tui.render?.(20))).toEqual([
+      "root-1",
+      "model-selector",
+      "model-option",
+      "root-tail",
+      "",
+    ]);
+
+    lease.release();
+  });
+
+  it("lifts Pi built-in selector components above the fixed cluster", () => {
+    const selector = new ModelSelectorComponent();
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    tui.render = (width) => [
+      "root-1",
+      ...selector.render(width),
+      "root-tail",
+    ];
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({
+        lines: ["editor-a", "editor-b"],
+        cursor: null,
+      }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = selector;
+    terminal.writes.splice(0);
+    tui.doRender?.();
+
+    expect(rootContent(tui.render?.(20))).toEqual(["root-1", "root-tail"]);
+    const paint = terminal.writes.join("");
+    expect(paint).toContain(
+      `${moveCursor(3, 1)}\x1b[0m\x1b[2K\x1b[0mmodel-selector`
+    );
+    expect(paint).toContain(
+      `${moveCursor(4, 1)}\x1b[0m\x1b[2K\x1b[0mmodel-option`
+    );
+    expect(paint).toContain(
+      `${moveCursor(5, 1)}\x1b[0m\x1b[2K\x1b[0meditor-a`
+    );
+    expect(paint).toContain(
+      `${moveCursor(6, 1)}\x1b[0m\x1b[2K\x1b[0meditor-b`
+    );
+  });
+
+  it("keeps above-editor surface visible when base cluster fills row budget", () => {
+    const { compositor, terminal } = createCompositor({
+      terminalRows: 6,
+      renderCluster: (_width, rows) => ({
+        lines: Array.from({ length: Math.max(1, rows - 1) }, (_, index) =>
+          `cluster-${index + 1}`
+        ),
+        cursor: null,
+      }),
+    });
+    expect(compositor.install()).toBe(true);
+    terminal.writes.splice(0);
+
+    acquireAboveEditorSurfaceLease({
+      owner: "selector",
+      id: "full-budget",
+      target: {
+        render: () => ["above-visible"],
+      },
+    });
+
+    const paint = terminal.writes.join("");
+    expect(paint).toContain("above-visible");
+  });
+
+  it("stacks root transcript, capped above-editor surface, and fixed cluster", () => {
+    const { compositor, terminal, tui } = createCompositor({
+      rootLines: ["root-1", "root-2", "root-3", "root-4"],
+      terminalRows: 6,
+    });
+    expect(compositor.install()).toBe(true);
+    terminal.writes.splice(0);
+
+    acquireAboveEditorSurfaceLease({
+      owner: "selector",
+      id: "preview",
+      target: {
+        render: () => ["above-1", "above-2", "above-3", "above-4"],
+      },
+    });
+
+    expect(terminal.rows).toBe(1);
+    expect(rootContent(tui.render?.(20))).toEqual(["root-4"]);
+
+    const paint = terminal.writes.join("");
+    expect(paint).toContain(`${moveCursor(2, 1)}\x1b[0m\x1b[2K\x1b[0mabove-1`);
+    expect(paint).toContain(`${moveCursor(3, 1)}\x1b[0m\x1b[2K\x1b[0mabove-2`);
+    expect(paint).toContain(`${moveCursor(4, 1)}\x1b[0m\x1b[2K\x1b[0mabove-3`);
+    expect(paint).toContain(`${moveCursor(5, 1)}\x1b[0m\x1b[2K\x1b[0mcluster-a`);
+    expect(paint).toContain(`${moveCursor(6, 1)}\x1b[0m\x1b[2K\x1b[0mcluster-b`);
   });
 
   it("renders the root scrollbar thumb at the bottom", () => {
@@ -811,6 +1005,28 @@ describe("terminal split compositor", () => {
     expect(tui.listeners[0]?.("\u001b[<64;1;1M")).toBeUndefined();
   });
 
+  it("passes configured scroll shortcuts through while above-editor surface is active", () => {
+    const { compositor, tui } = createCompositor({
+      rootLines: ["root-1", "root-2", "root-3", "root-4", "root-5"],
+      scrollDownShortcuts: ["down"],
+      scrollUpShortcuts: ["up"],
+      terminalRows: 5,
+    });
+    expect(compositor.install()).toBe(true);
+
+    const lease = acquireAboveEditorSurfaceLease({
+      owner: "selector",
+      id: "input",
+      target: { render: () => ["select"] },
+    });
+
+    expect(tui.listeners[0]?.("\u001b[A")).toBeUndefined();
+    expect(tui.listeners[0]?.("\u001b[B")).toBeUndefined();
+
+    lease.release();
+    expect(tui.listeners[0]?.("\u001b[A")).toEqual({ consume: true });
+  });
+
   it("passes replacement-surface wheel input through while leased", () => {
     const renderable = { render: (_width: number) => ["replacement"] };
     const { compositor, terminal, tui } = createCompositor({
@@ -944,6 +1160,31 @@ describe("terminal split compositor", () => {
       "root-2",
       "root-3",
     ]);
+  });
+
+  it("copies selected text from above-editor rows", () => {
+    const copied: string[] = [];
+    const { compositor, terminal, tui } = createCompositor({
+      cluster: { lines: ["cluster text"], cursor: null },
+      onCopySelection: (text) => copied.push(text),
+    });
+    expect(compositor.install()).toBe(true);
+
+    acquireAboveEditorSurfaceLease({
+      owner: "selector",
+      id: "copy",
+      target: {
+        render: () => ["above text"],
+      },
+    });
+    tui.render?.(20);
+
+    const aboveRow = terminal.rows + 1;
+    tui.listeners[0]?.(`\u001b[<0;1;${aboveRow}M`);
+    tui.listeners[0]?.(`\u001b[<32;6;${aboveRow}M`);
+    tui.listeners[0]?.(`\u001b[<0;6;${aboveRow}m`);
+
+    expect(copied).toEqual(["above"]);
   });
 
   it("copies selected text through the configured copy callback", () => {

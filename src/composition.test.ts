@@ -1,19 +1,21 @@
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-  ExtensionUIContext,
-  KeybindingsManager,
-  ReadonlyFooterDataProvider,
-  Theme,
+import {
+  type ExtensionAPI,
+  type ExtensionContext,
+  type ExtensionUIContext,
+  initTheme,
+  type KeybindingsManager,
+  type ReadonlyFooterDataProvider,
+  type Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 
 import { createPieditorComposition } from "./composition";
+import { clearAboveEditorSurfaceLeases } from "./fixed-editor/above-editor-lease";
 import {
   acquireReplacementSurfaceLease,
   clearReplacementSurfaceLeases,
@@ -22,6 +24,10 @@ import {
 
 const originalHome = process.env.HOME;
 const tempRoots: string[] = [];
+
+beforeAll(() => {
+  initTheme("dark");
+});
 
 type EditorFactory = NonNullable<
   Parameters<ExtensionUIContext["setEditorComponent"]>[0]
@@ -36,6 +42,7 @@ interface HarnessOptions {
   terminalWrite?: (data: string) => void;
   copySelection?: (text: string) => void;
   rootLines?: string[];
+  overlayVisible?: boolean;
 }
 
 interface MockTui {
@@ -119,7 +126,7 @@ function createMockTui(options: HarnessOptions): MockTui {
       this.requestRenderCount += 1;
     },
     getShowHardwareCursor: () => true,
-    hasOverlay: () => false,
+    hasOverlay: () => options.overlayVisible ?? false,
     compositeLineAt: (baseLine) => baseLine,
     requestRenderCount: 0,
   };
@@ -157,12 +164,26 @@ function createHarness(options: HarnessOptions) {
     getCommands: () => [],
   } as unknown as ExtensionAPI;
 
+  const terminalInputHandlers: Array<
+    (data: string) => { consume?: boolean; data?: string } | undefined
+  > = [];
   const ui = {
     setEditorComponent(factory: EditorFactory | undefined) {
       editorFactory = factory;
     },
     setFooter(factory: FooterFactory | undefined) {
       footerFactory = factory;
+    },
+    select: async () => "original-select",
+    confirm: async () => true,
+    onTerminalInput(handler: (data: string) => { consume?: boolean; data?: string } | undefined) {
+      terminalInputHandlers.push(handler);
+      return () => {
+        const index = terminalInputHandlers.indexOf(handler);
+        if (index !== -1) {
+          terminalInputHandlers.splice(index, 1);
+        }
+      };
     },
     notify(message: string, level?: string) {
       notifications.push({ message, level });
@@ -202,8 +223,10 @@ function createHarness(options: HarnessOptions) {
     footerFactory,
     keybindings,
     notifications,
+    terminalInputHandlers,
     theme,
     tui,
+    ui,
     createEditor() {
       return editorFactory(tui as unknown as TUI, theme, keybindings);
     },
@@ -218,6 +241,7 @@ function createHarness(options: HarnessOptions) {
 }
 
 afterEach(() => {
+  clearAboveEditorSurfaceLeases();
   clearReplacementSurfaceLeases();
   process.env.HOME = originalHome;
   for (const root of tempRoots.splice(0)) {
@@ -382,5 +406,274 @@ describe("pieditor fixed editor composition", () => {
       isIdle: () => false,
     } as ExtensionContext);
     expect(rootContent(harness.tui.render(80))).toEqual(["root-5", "root-6"]);
+  });
+
+  it("falls back to original select and confirm when fixed editor is not installed", async () => {
+    const harness = createHarness({ fixedEditorEnabled: false });
+
+    expect(await harness.ui.select("Title", ["A"])).toBe("original-select");
+    expect(await harness.ui.confirm("Title", "Message")).toBe(true);
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+  });
+
+  it("falls back to original select and confirm while an overlay is visible", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      overlayVisible: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    expect(await harness.ui.select("Title", ["A"])).toBe("original-select");
+    expect(await harness.ui.confirm("Title", "Message")).toBe(true);
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+  });
+
+  it("falls back to original select while a replacement lease is active", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    const replacement = { render: () => ["replacement"] };
+    harness.createEditor();
+    harness.createFooter();
+    const lease = acquireReplacementSurfaceLease({
+      owner: "test",
+      id: "replacement",
+      target: replacement,
+    });
+
+    expect(await harness.ui.select("Title", ["A"])).toBe("original-select");
+    expect(await harness.ui.confirm("Title", "Message")).toBe(true);
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+
+    lease.release();
+  });
+
+  it("passes replacement input through and resolves active fixed selects", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    const replacement = { render: () => ["replacement"] };
+    harness.createEditor();
+    harness.createFooter();
+
+    const active = harness.ui.select("Active", ["A"]);
+    const queued = harness.ui.select("Queued", ["B"]);
+    expect(harness.terminalInputHandlers).toHaveLength(1);
+
+    const lease = acquireReplacementSurfaceLease({
+      owner: "test",
+      id: "replacement",
+      target: replacement,
+    });
+
+    expect(await active).toBeUndefined();
+    expect(await queued).toBeUndefined();
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+    expect(harness.tui.listeners[0]?.("x")).toBeUndefined();
+
+    lease.release();
+  });
+
+  it("maps fixed confirm to Yes and No semantics", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const yes = harness.ui.confirm("Confirm", "Proceed?");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await yes).toBe(true);
+
+    const no = harness.ui.confirm("Confirm", "Proceed?");
+    harness.terminalInputHandlers.at(-1)?.("\u001b[B");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await no).toBe(false);
+  });
+
+  it("serializes concurrent fixed select prompts", async () => {
+    const writes: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: (data) => writes.push(data),
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const first = harness.ui.select("First", ["A", "B"]);
+    const second = harness.ui.select("Second", ["C", "D"]);
+
+    expect(harness.terminalInputHandlers).toHaveLength(1);
+    expect(writes.join("\n")).toContain("First");
+    expect(writes.join("\n")).toContain("navigate");
+    expect(writes.join("\n")).toContain("select");
+    harness.terminalInputHandlers.at(-1)?.("\u001b[B");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await first).toBe("B");
+
+    expect(writes.join("\n")).toContain("Second");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await second).toBe("C");
+  });
+
+  it("handles fixed select keybinding variants", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const selected = harness.ui.select("Keys", ["A", "B"]);
+    harness.terminalInputHandlers.at(-1)?.("\u001bOB");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await selected).toBe("B");
+
+    const canceled = harness.ui.select("Cancel", ["A"]);
+    harness.terminalInputHandlers.at(-1)?.("\u0003");
+    expect(await canceled).toBeUndefined();
+  });
+
+  it("consumes unhandled fixed select input while active", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const selected = harness.ui.select("Keys", ["A"]);
+    expect(harness.terminalInputHandlers.at(-1)?.("x")).toEqual({
+      consume: true,
+    });
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await selected).toBe("A");
+  });
+
+  it("resolves queued fixed selects immediately on abort", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+    const queuedAbort = new AbortController();
+
+    const active = harness.ui.select("Active", ["A"]);
+    const queued = harness.ui.select("Queued", ["B"], {
+      signal: queuedAbort.signal,
+    });
+    queuedAbort.abort();
+
+    await expect(queued).resolves.toBeUndefined();
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await active).toBe("A");
+  });
+
+  it("resolves open and queued fixed selects as undefined on abort", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+    const openAbort = new AbortController();
+    const queuedAbort = new AbortController();
+
+    const open = harness.ui.select("Open", ["A"], { signal: openAbort.signal });
+    const queued = harness.ui.select("Queued", ["B"], {
+      signal: queuedAbort.signal,
+    });
+    queuedAbort.abort();
+    openAbort.abort();
+
+    expect(await open).toBeUndefined();
+    expect(await queued).toBeUndefined();
+  });
+
+  it("resolves open and queued fixed selects on detach", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const open = harness.ui.select("Open", ["A"]);
+    const queued = harness.ui.select("Queued", ["B"]);
+    expect(harness.terminalInputHandlers).toHaveLength(1);
+
+    harness.composition.detachEditor();
+
+    expect(await open).toBeUndefined();
+    expect(await queued).toBeUndefined();
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+  });
+
+  it("resolves open fixed selects when fixed editor is disabled", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalWrite: () => undefined,
+    });
+    harness.createEditor();
+    harness.createFooter();
+
+    const open = harness.ui.select("Open", ["A"]);
+    expect(harness.terminalInputHandlers).toHaveLength(1);
+
+    harness.composition.setFixedEditorEnabled(false);
+
+    expect(await open).toBeUndefined();
+    expect(harness.terminalInputHandlers).toHaveLength(0);
+  });
+
+  it("keeps selected fixed select row visible while scrolling options", async () => {
+    const writes: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalRows: 16,
+      terminalWrite: (data) => writes.push(data),
+    });
+    harness.createEditor();
+    harness.createFooter();
+    const options = Array.from({ length: 12 }, (_, index) => `Option ${index + 1}`);
+
+    const selected = harness.ui.select("Pick", options);
+    for (let index = 0; index < 10; index += 1) {
+      harness.terminalInputHandlers.at(-1)?.("\u001b[B");
+    }
+
+    const rendered = writes.at(-1) ?? "";
+    expect(rendered).toContain("Option 11");
+    expect(rendered).not.toContain("Option 2");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await selected).toBe("Option 11");
+  });
+
+  it("keeps selected fixed select row visible in a short terminal", async () => {
+    const writes: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: true,
+      terminalRows: 10,
+      terminalWrite: (data) => writes.push(data),
+    });
+    harness.createEditor();
+    harness.createFooter();
+    const options = Array.from({ length: 12 }, (_, index) => `Option ${index + 1}`);
+
+    const selected = harness.ui.select("Pick", options);
+    for (let index = 0; index < 10; index += 1) {
+      harness.terminalInputHandlers.at(-1)?.("\u001b[B");
+    }
+
+    const rendered = writes.at(-1) ?? "";
+    expect(rendered).toContain("Option 11");
+    harness.terminalInputHandlers.at(-1)?.("\r");
+    expect(await selected).toBe("Option 11");
   });
 });

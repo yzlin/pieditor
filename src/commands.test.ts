@@ -57,12 +57,13 @@ function createHarness(homeDir?: string) {
     { homeDir }
   );
 
-  if (!command) {
+  const registeredCommand = command as HarnessCommandOptions | null;
+  if (!registeredCommand) {
     throw new Error("pieditor command was not registered");
   }
 
   return {
-    command,
+    command: registeredCommand,
     notifications,
     getFixedEditorConfig: () => fixedEditorConfig,
     createContext(cwd: string) {

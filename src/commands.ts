@@ -23,8 +23,7 @@ interface PieditorCommandOptions {
 }
 
 const COMMAND_PARTS_PATTERN = /\s+/;
-const FIXED_EDITOR_USAGE =
-  "Usage: /pieditor fixed-editor [on|off|toggle|status]";
+const PIEDITOR_USAGE = "Usage: /pieditor fixed-editor [on|off|toggle|status]";
 
 const PIEDITOR_COMPLETIONS = [
   {
@@ -121,10 +120,15 @@ function handleFixedEditorCommand(
     const projectOverride = hasProjectFixedEditorEnabledOverride({
       cwd: getCommandCwd(ctx),
     });
+    const fixedEditorStatus = describeFixedEditorStatus(
+      runtime.getFixedEditorConfig().enabled
+    );
+    const projectOverrideStatus = projectOverride
+      ? " (project override active)"
+      : "";
+
     ctx.ui.notify(
-      `${describeFixedEditorStatus(runtime.getFixedEditorConfig().enabled)}${
-        projectOverride ? " (project override active)" : ""
-      }; ${describeReplacementLeaseStatus()}`,
+      `${fixedEditorStatus}${projectOverrideStatus}; ${describeReplacementLeaseStatus()}`,
       "info"
     );
     return;
@@ -134,7 +138,7 @@ function handleFixedEditorCommand(
   const nextEnabled = getNextFixedEditorEnabled(action, currentEnabled);
 
   if (nextEnabled === null) {
-    ctx.ui.notify(FIXED_EDITOR_USAGE, "warning");
+    ctx.ui.notify(PIEDITOR_USAGE, "warning");
     return;
   }
 
@@ -180,7 +184,7 @@ export function registerPieditorCommands(
       const { topic, action } = parsePieditorCommand(args);
 
       if (topic !== "fixed-editor") {
-        ctx.ui.notify(FIXED_EDITOR_USAGE, "warning");
+        ctx.ui.notify(PIEDITOR_USAGE, "warning");
         return;
       }
 

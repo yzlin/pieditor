@@ -36,6 +36,7 @@ interface ReplacementLeaseState {
   activeCompositor: ReplacementLeaseCompositor | null;
   activeLeases: Set<ActiveLease>;
   targetLeaseCounts: Map<ReplacementSurface, number>;
+  listeners: Set<() => void>;
 }
 
 const REPLACEMENT_LEASE_STATE_KEY = Symbol.for(
@@ -46,15 +47,15 @@ const globalReplacementLeaseState = globalThis as typeof globalThis & {
   [REPLACEMENT_LEASE_STATE_KEY]?: ReplacementLeaseState;
 };
 
-if (!globalReplacementLeaseState[REPLACEMENT_LEASE_STATE_KEY]) {
-  globalReplacementLeaseState[REPLACEMENT_LEASE_STATE_KEY] = {
-    activeCompositor: null,
-    activeLeases: new Set<ActiveLease>(),
-    targetLeaseCounts: new Map<ReplacementSurface, number>(),
-  };
-}
+globalReplacementLeaseState[REPLACEMENT_LEASE_STATE_KEY] ??= {
+  activeCompositor: null,
+  activeLeases: new Set<ActiveLease>(),
+  targetLeaseCounts: new Map<ReplacementSurface, number>(),
+  listeners: new Set<() => void>(),
+};
 
 const state = globalReplacementLeaseState[REPLACEMENT_LEASE_STATE_KEY];
+state.listeners ??= new Set<() => void>();
 
 function normalizeLabel(value: string, fallback: string): string {
   const label = value.trim();
@@ -63,6 +64,12 @@ function normalizeLabel(value: string, fallback: string): string {
 
 function repaint(): void {
   state.activeCompositor?.requestRepaint?.();
+}
+
+function notifyLeaseChange(): void {
+  for (const listener of state.listeners) {
+    listener();
+  }
 }
 
 function hideTarget(target: ReplacementSurface): void {
@@ -113,6 +120,7 @@ export function acquireReplacementSurfaceLease(
 
   state.activeLeases.add(lease);
   hideTarget(lease.target);
+  notifyLeaseChange();
 
   return {
     owner: lease.owner,
@@ -125,7 +133,15 @@ export function acquireReplacementSurfaceLease(
       lease.released = true;
       state.activeLeases.delete(lease);
       unhideTarget(lease.target);
+      notifyLeaseChange();
     },
+  };
+}
+
+export function onReplacementSurfaceLeaseChange(listener: () => void): () => void {
+  state.listeners.add(listener);
+  return () => {
+    state.listeners.delete(listener);
   };
 }
 
@@ -175,4 +191,5 @@ export function clearReplacementSurfaceLeases(): void {
     state.activeCompositor?.unhideRenderable?.(target);
   }
   repaint();
+  notifyLeaseChange();
 }

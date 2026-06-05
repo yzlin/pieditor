@@ -88,7 +88,12 @@ function capPlainEditorLines(lines: string[], count: number): string[] {
   return lines.slice(start, start + count);
 }
 
-function capFramedEditorLines(
+function isPlainHorizontalBorder(line: string): boolean {
+  const stripped = stripAnsi(line);
+  return stripped.length > 0 && [...stripped].every((char) => char === "─");
+}
+
+function capBorderedEditorLines(
   lines: string[],
   count: number,
   bottomIndex: number
@@ -110,10 +115,10 @@ function capFramedEditorLines(
   );
 
   return [
+    ...popupTail,
     top,
     ...capPlainEditorLines(body, bodyCount),
     ...(includeBottom ? [bottom] : []),
-    ...popupTail,
   ];
 }
 
@@ -121,15 +126,31 @@ function capEditorLines(lines: string[], count: number): string[] {
   if (count <= 0) {
     return [];
   }
-  if (lines.length <= count) {
-    return lines;
-  }
 
-  const bottomIndex = lines.findIndex(
+  const framedBottomIndex = lines.findIndex(
     (line, index) => index > 0 && stripAnsi(line).startsWith("╰")
   );
-  if (stripAnsi(lines[0] ?? "").startsWith("╭") && bottomIndex > 1) {
-    return capFramedEditorLines(lines, count, bottomIndex);
+  if (stripAnsi(lines[0] ?? "").startsWith("╭") && framedBottomIndex > 1) {
+    return capBorderedEditorLines(
+      lines,
+      Math.min(count, lines.length),
+      framedBottomIndex
+    );
+  }
+
+  const plainBottomIndex = lines.findIndex(
+    (line, index) => index > 0 && isPlainHorizontalBorder(line)
+  );
+  if (isPlainHorizontalBorder(lines[0] ?? "") && plainBottomIndex > 1) {
+    return capBorderedEditorLines(
+      lines,
+      Math.min(count, lines.length),
+      plainBottomIndex
+    );
+  }
+
+  if (lines.length <= count) {
+    return lines;
   }
 
   return capPlainEditorLines(lines, count);

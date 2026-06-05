@@ -13,6 +13,10 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 
+import {
+  attachAboveEditorLeaseCompositor,
+  getActiveAboveEditorSurface,
+} from "./above-editor-lease.js";
 import type { FixedEditorClusterRender, FixedEditorCursor } from "./cluster.js";
 import {
   getActiveReplacementLeaseDiagnostics,
@@ -84,6 +88,10 @@ interface RenderPassCluster {
   width: number;
   terminalRows: number;
   cluster: FixedEditorClusterRender;
+}
+
+interface RenderableComponent {
+  render(width: number): string[];
 }
 
 interface PaintedCluster {
@@ -732,6 +740,15 @@ function buildFixedClusterLineClear(row: number): string {
   return `${moveCursor(row, 1)}${SGR_RESET}${clearLine()}${SGR_RESET}`;
 }
 
+function isRenderableComponent(value: unknown): value is RenderableComponent {
+  return typeof (value as RenderableComponent | null)?.render === "function";
+}
+
+function isPiBuiltInSelectorComponent(value: object): boolean {
+  const constructorName = value.constructor?.name ?? "";
+  return constructorName.endsWith("SelectorComponent");
+}
+
 function buildFixedClusterChangedLinePaint(
   previous: PaintedCluster,
   next: PaintedCluster
@@ -798,6 +815,7 @@ export class TerminalSplitCompositor {
   private lastPaintedCluster: PaintedCluster | null = null;
   private renderingCluster = false;
   private renderingScrollableRoot = false;
+  private hidingLiftedSelectorRoot = false;
   private checkingOverlay = false;
   private hadExternalFocusedComponent = false;
   private scrollOffset = 0;
@@ -878,6 +896,7 @@ export class TerminalSplitCompositor {
       if (this.originalRender) {
         this.tui.render = (width: number) => this.renderScrollableRoot(width);
       }
+      attachAboveEditorLeaseCompositor(this);
 
       if (typeof this.tui.addInputListener === "function") {
         const removeInputListener = this.tui.addInputListener((data: string) =>
@@ -1063,7 +1082,7 @@ export class TerminalSplitCompositor {
     }
     const rawRows = this.getRawRows();
     const width = Math.max(1, this.terminal.columns || 80);
-    const cluster = this.getCluster(width, rawRows);
+    const cluster = this.getStackedCluster(width, rawRows);
     if (cluster.lines.length === 0) {
       return;
     }
@@ -1167,6 +1186,7 @@ export class TerminalSplitCompositor {
     }
     this.clearClipboardRestoreTimer();
 
+    attachAboveEditorLeaseCompositor(null);
     this.terminal.write = this.originalWrite;
     if (this.originalDoRender) {
       this.tui.doRender = this.originalDoRender;
@@ -1194,6 +1214,7 @@ export class TerminalSplitCompositor {
   private restoreAfterFailedInstall(): void {
     try {
       this.installed = false;
+      attachAboveEditorLeaseCompositor(null);
       this.terminal.write = this.originalWrite;
       if (this.originalDoRender) {
         this.tui.doRender = this.originalDoRender;
@@ -1245,7 +1266,7 @@ export class TerminalSplitCompositor {
       return Math.max(1, rawRows - replacementCluster.lines.length);
     }
 
-    const cluster = this.getCluster(width, rawRows);
+    const cluster = this.getStackedCluster(width, rawRows);
     return Math.max(1, rawRows - cluster.lines.length);
   }
 
@@ -1264,7 +1285,11 @@ export class TerminalSplitCompositor {
           1,
           this.getRawRows() - replacementCluster.lines.length
         );
-        return this.renderRootWithScrollbar(renderWidth, scrollableRows);
+        return this.renderRootWithScrollbar(
+          renderWidth,
+          scrollableRows,
+          false
+        );
       }
 
       if (this.hasVisibleOverlay()) {
@@ -1272,7 +1297,7 @@ export class TerminalSplitCompositor {
       }
 
       const rawRows = this.getRawRows();
-      const cluster = this.getCluster(renderWidth, rawRows, true);
+      const cluster = this.getStackedCluster(renderWidth, rawRows, true);
       const scrollableRows = Math.max(1, rawRows - cluster.lines.length);
       return this.renderRootWithScrollbar(renderWidth, scrollableRows);
     } finally {
@@ -1282,9 +1307,14 @@ export class TerminalSplitCompositor {
 
   private renderRootWithScrollbar(
     renderWidth: number,
-    scrollableRows: number
+    scrollableRows: number,
+    hideLiftedSelector = true
   ): string[] {
-    const lines = this.originalRender?.(rootScrollbarContentWidth(renderWidth));
+    const renderRoot = () =>
+      this.originalRender?.(rootScrollbarContentWidth(renderWidth));
+    const lines = hideLiftedSelector
+      ? this.withLiftedSelectorHidden(renderRoot)
+      : renderRoot();
     const start = this.updateRootScrollState(lines ?? [], scrollableRows);
     const highlightedLines = this.visibleRootLines.map((line, index) =>
       this.renderSelectionHighlight(line, start + index, "root")
@@ -1356,7 +1386,12 @@ export class TerminalSplitCompositor {
       return undefined;
     }
 
+    const hasAboveEditorSurface = getActiveAboveEditorSurface() !== null;
     if (this.isReplacementLeaseActive()) {
+      if (hasAboveEditorSurface) {
+        return undefined;
+      }
+
       return this.handleReplacementScrollInput(data);
     }
 
@@ -1370,6 +1405,10 @@ export class TerminalSplitCompositor {
         this.handleMousePacket(packet);
       }
       return { consume: true };
+    }
+
+    if (hasAboveEditorSurface) {
+      return undefined;
     }
 
     const keyboardDelta = parseKeyboardScrollDelta(
@@ -1770,10 +1809,14 @@ export class TerminalSplitCompositor {
     this.requestRender();
   }
 
-  private requestRender(): void {
+  requestRender(): void {
     if (typeof this.tui.requestRender === "function") {
       this.tui.requestRender();
     }
+  }
+
+  canRenderAboveEditorSurface(): boolean {
+    return !this.disposed && !this.hasVisibleOverlay();
   }
 
   private clearClipboardRestoreTimer(): void {
@@ -1923,7 +1966,7 @@ export class TerminalSplitCompositor {
       const rawRows = this.getRawRows();
       const width = Math.max(1, this.terminal.columns || 80);
       const cluster =
-        this.getReplacementCluster(width) ?? this.getCluster(width, rawRows);
+        this.getReplacementCluster(width) ?? this.getStackedCluster(width, rawRows);
       const reservedRows = cluster.lines.length;
 
       if (reservedRows === 0 || rawRows <= 2) {
@@ -2025,6 +2068,102 @@ export class TerminalSplitCompositor {
     } finally {
       this.renderingCluster = wasRenderingCluster;
     }
+  }
+
+  private getStackedCluster(
+    width: number,
+    terminalRows: number,
+    forceRefresh = false
+  ): FixedEditorClusterRender {
+    const maxAboveRows = Math.max(0, terminalRows - 2);
+    const aboveLines = this.getAboveEditorLines(width, maxAboveRows);
+    const clusterRows = Math.max(1, terminalRows - aboveLines.length);
+    const cluster = this.getCluster(width, clusterRows, forceRefresh);
+    const cappedAboveLines = aboveLines.slice(
+      0,
+      Math.max(0, terminalRows - 1 - cluster.lines.length)
+    );
+    if (cappedAboveLines.length === 0) {
+      return cluster;
+    }
+
+    const stackedCluster = {
+      lines: [...cappedAboveLines, ...cluster.lines],
+      cursor: cluster.cursor
+        ? { ...cluster.cursor, row: cluster.cursor.row + cappedAboveLines.length }
+        : null,
+    };
+    this.visibleClusterLines = stackedCluster.lines;
+    return stackedCluster;
+  }
+
+  private getAboveEditorLines(width: number, maxRows: number): string[] {
+    if (maxRows <= 0) {
+      return [];
+    }
+
+    const leaseSurface = getActiveAboveEditorSurface();
+    const leaseLines = leaseSurface
+      ? this.withClusterRender(() =>
+          leaseSurface.render(width, maxRows).slice(0, maxRows)
+        )
+      : [];
+
+    const remainingRows = maxRows - leaseLines.length;
+    const liftedSelector = this.getLiftedSelectorComponent();
+    const selectorLines =
+      liftedSelector && remainingRows > 0
+        ? this.withClusterRender(() =>
+            liftedSelector.render(width).slice(0, remainingRows)
+          )
+        : [];
+
+    return [...leaseLines, ...selectorLines];
+  }
+
+  private withLiftedSelectorHidden<T>(render: () => T): T {
+    const selector = this.getLiftedSelectorComponent();
+    if (!selector) {
+      return render();
+    }
+
+    const originalRenderDescriptor = Object.getOwnPropertyDescriptor(
+      selector,
+      "render"
+    );
+    this.hidingLiftedSelectorRoot = true;
+    selector.render = () => [];
+    try {
+      return render();
+    } finally {
+      if (originalRenderDescriptor) {
+        Object.defineProperty(selector, "render", originalRenderDescriptor);
+      } else {
+        Reflect.deleteProperty(selector, "render");
+      }
+      this.hidingLiftedSelectorRoot = false;
+    }
+  }
+
+  private getLiftedSelectorComponent(): RenderableComponent | null {
+    if (this.hidingLiftedSelectorRoot) {
+      return null;
+    }
+
+    const focusedComponent = this.tui.focusedComponent;
+    if (!isRenderableComponent(focusedComponent)) {
+      return null;
+    }
+
+    if (
+      this.patchedRenders.some((patch) => patch.target === focusedComponent)
+    ) {
+      return null;
+    }
+
+    return isPiBuiltInSelectorComponent(focusedComponent)
+      ? focusedComponent
+      : null;
   }
 
   private getReplacementCluster(

@@ -49,6 +49,80 @@ describe("fixed editor cluster", () => {
     expect(render.cursor).toBeNull();
   });
 
+  it("moves plain editor autocomplete rows above the editor when all rows fit", () => {
+    const render = renderFixedEditorCluster({
+      width: 20,
+      terminalRows: 6,
+      editorLines: [
+        "────────────────────",
+        `/${CURSOR_MARKER}                  `,
+        "────────────────────",
+        "→ /model",
+        "  /settings",
+      ],
+    });
+
+    expect(render.lines).toEqual([
+      "→ /model",
+      "  /settings",
+      "────────────────────",
+      "/                  ",
+      "────────────────────",
+    ]);
+    expect(render.cursor).toEqual({ row: 3, col: 1 });
+  });
+
+  it("moves plain editor popup rows above the editor while budgeting", () => {
+    const render = renderFixedEditorCluster({
+      width: 20,
+      terminalRows: 6,
+      editorLines: [
+        "────────────────────",
+        `/${CURSOR_MARKER}                  `,
+        "plain body",
+        "────────────────────",
+        "→ /model",
+        "  /settings",
+      ],
+    });
+
+    expect(render.lines).toEqual([
+      "→ /model",
+      "  /settings",
+      "────────────────────",
+      "/                  ",
+      "────────────────────",
+    ]);
+    expect(render.cursor).toEqual({ row: 3, col: 1 });
+  });
+
+  it("moves framed editor autocomplete rows above the editor when all rows fit", () => {
+    const render = renderFixedEditorCluster({
+      width: 20,
+      terminalRows: 8,
+      editorLines: [
+        "╭ status pinned ╮",
+        "│ body-1       │",
+        `│ body-${CURSOR_MARKER}2       │`,
+        "│ body-3       │",
+        "╰ path git     ╯",
+        "popup-a",
+        "popup-b",
+      ],
+    });
+
+    expect(render.lines).toEqual([
+      "popup-a",
+      "popup-b",
+      "╭ status pinned ╮",
+      "│ body-1       │",
+      "│ body-2       │",
+      "│ body-3       │",
+      "╰ path git     ╯",
+    ]);
+    expect(render.cursor).toEqual({ row: 4, col: 7 });
+  });
+
   it("keeps framed editor top border pinned while budgeting body, bottom border, and popup", () => {
     const render = renderFixedEditorCluster({
       width: 20,
@@ -66,13 +140,13 @@ describe("fixed editor cluster", () => {
     });
 
     expect(render.lines).toEqual([
+      "popup-a",
+      "popup-b",
       "╭ status pinned ╮",
       "│ body-2       │",
       "╰ path git     ╯",
-      "popup-a",
-      "popup-b",
     ]);
-    expect(render.cursor).toEqual({ row: 1, col: 7 });
+    expect(render.cursor).toEqual({ row: 3, col: 7 });
   });
 
   it("preserves framed editor cursor when popup rows reduce the body budget", () => {
@@ -90,12 +164,12 @@ describe("fixed editor cluster", () => {
     });
 
     expect(render.lines).toEqual([
+      "popup-a",
       "╭ status pinned ╮",
       "│ body-3       │",
       "╰ path git     ╯",
-      "popup-a",
     ]);
-    expect(render.cursor).toEqual({ row: 1, col: 7 });
+    expect(render.cursor).toEqual({ row: 2, col: 7 });
   });
 
   it("detects colored framed editor borders while budgeting rows", () => {
@@ -112,12 +186,12 @@ describe("fixed editor cluster", () => {
     });
 
     expect(render.lines).toEqual([
+      "popup-a",
       `${dim("╭")} status pinned ${dim("╮")}`,
       `${dim("│")} body-2 ${dim("│")}`,
       `${dim("╰")} path git ${dim("╯")}`,
-      "popup-a",
     ]);
-    expect(render.cursor).toEqual({ row: 1, col: 7 });
+    expect(render.cursor).toEqual({ row: 2, col: 7 });
   });
 
   it("truncates all cluster lines to the terminal width", () => {
