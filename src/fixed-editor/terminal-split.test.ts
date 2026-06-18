@@ -374,6 +374,149 @@ describe("terminal split compositor", () => {
     );
   });
 
+  it("lifts Pi built-in selectors on the first render that focuses them", () => {
+    const selector = new ModelSelectorComponent();
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    let rootDuringRender: string[] = [];
+    tui.render = (width) => {
+      tui.focusedComponent = selector;
+      return ["root-1", ...selector.render(width), "root-tail"];
+    };
+    tui.doRender = () => {
+      rootDuringRender = tui.render?.(20) ?? [];
+    };
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({
+        lines: ["editor-a", "editor-b"],
+        cursor: null,
+      }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    terminal.writes.splice(0);
+    tui.doRender?.();
+
+    expect(rootContent(rootDuringRender)).toEqual(["root-1", "root-tail"]);
+    const paint = terminal.writes.join("");
+    expect(paint).toContain(
+      `${moveCursor(3, 1)}\x1b[0m\x1b[2K\x1b[0mmodel-selector`
+    );
+    expect(paint).toContain(
+      `${moveCursor(4, 1)}\x1b[0m\x1b[2K\x1b[0mmodel-option`
+    );
+  });
+
+  it("lifts focused extension custom components above the fixed cluster", () => {
+    const custom = { render: (_width: number) => ["review-preset", "review-option"] };
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    tui.render = (width) => ["root-1", ...custom.render(width), "root-tail"];
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({
+        lines: ["editor-a", "editor-b"],
+        cursor: null,
+      }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = custom;
+    terminal.writes.splice(0);
+    tui.doRender?.();
+
+    expect(rootContent(tui.render?.(20))).toEqual(["root-1", "root-tail"]);
+    const paint = terminal.writes.join("");
+    expect(paint).toContain(
+      `${moveCursor(3, 1)}\x1b[0m\x1b[2K\x1b[0mreview-preset`
+    );
+    expect(paint).toContain(
+      `${moveCursor(4, 1)}\x1b[0m\x1b[2K\x1b[0mreview-option`
+    );
+  });
+
+  it("keeps non-writable focused renderables in root instead of duplicating them", () => {
+    const custom = {} as { render(width: number): string[] };
+    const render = (_width: number) => ["locked-choice"];
+    Object.defineProperty(custom, "render", {
+      configurable: false,
+      value: render,
+      writable: false,
+    });
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    let rootDuringRender: string[] = [];
+    tui.render = (width) => ["root-1", ...custom.render(width), "root-tail"];
+    tui.doRender = () => {
+      rootDuringRender = tui.render?.(20) ?? [];
+    };
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({
+        lines: ["editor-a", "editor-b"],
+        cursor: null,
+      }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = custom;
+    terminal.writes.splice(0);
+
+    expect(() => tui.doRender?.()).not.toThrow();
+    expect(rootContent(rootDuringRender)).toEqual([
+      "root-1",
+      "locked-choice",
+      "root-tail",
+      "",
+    ]);
+    expect(Object.getOwnPropertyDescriptor(custom, "render")).toEqual({
+      configurable: false,
+      enumerable: false,
+      value: render,
+      writable: false,
+    });
+    expect(terminal.writes.join("")).not.toContain("locked-choice");
+  });
+
+  it("re-renders root when focus swaps between renderable components during render", () => {
+    const first = { render: (_width: number) => ["first-choice"] };
+    const second = { render: (_width: number) => ["second-choice"] };
+    const terminal = new MockTerminal(6);
+    const tui = createTui();
+    let rootDuringRender: string[] = [];
+    tui.render = (width) => {
+      tui.focusedComponent = second;
+      return ["root-1", ...second.render(width), "root-tail"];
+    };
+    tui.doRender = () => {
+      rootDuringRender = tui.render?.(20) ?? [];
+    };
+    const compositor = new TerminalSplitCompositor({
+      tui,
+      terminal,
+      renderCluster: () => ({
+        lines: ["editor-a", "editor-b"],
+        cursor: null,
+      }),
+    });
+
+    expect(compositor.install()).toBe(true);
+    tui.focusedComponent = first;
+    terminal.writes.splice(0);
+    tui.doRender?.();
+
+    const renderedRoot = rootContent(rootDuringRender);
+    expect(renderedRoot).toContain("root-1");
+    expect(renderedRoot).toContain("root-tail");
+    expect(renderedRoot).not.toContain("second-choice");
+    const paint = terminal.writes.join("");
+    expect(paint).toContain("second-choice");
+  });
+
   it("keeps above-editor surface visible when base cluster fills row budget", () => {
     const { compositor, terminal } = createCompositor({
       terminalRows: 6,

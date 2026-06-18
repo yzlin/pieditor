@@ -744,9 +744,17 @@ function isRenderableComponent(value: unknown): value is RenderableComponent {
   return typeof (value as RenderableComponent | null)?.render === "function";
 }
 
-function isPiBuiltInSelectorComponent(value: object): boolean {
-  const constructorName = value.constructor?.name ?? "";
-  return constructorName.endsWith("SelectorComponent");
+function canTemporarilyReplaceRender(component: RenderableComponent): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(component, "render");
+  if (!descriptor) {
+    return Object.isExtensible(component);
+  }
+
+  if (descriptor.configurable) {
+    return true;
+  }
+
+  return "value" in descriptor && descriptor.writable === true;
 }
 
 function buildFixedClusterChangedLinePaint(
@@ -815,7 +823,7 @@ export class TerminalSplitCompositor {
   private lastPaintedCluster: PaintedCluster | null = null;
   private renderingCluster = false;
   private renderingScrollableRoot = false;
-  private hidingLiftedSelectorRoot = false;
+  private hidingLiftedRenderableRoot = false;
   private checkingOverlay = false;
   private hadExternalFocusedComponent = false;
   private scrollOffset = 0;
@@ -1297,9 +1305,19 @@ export class TerminalSplitCompositor {
       }
 
       const rawRows = this.getRawRows();
+      const liftedRenderableBeforeRender = this.getLiftedRenderableComponent();
       const cluster = this.getStackedCluster(renderWidth, rawRows, true);
       const scrollableRows = Math.max(1, rawRows - cluster.lines.length);
-      return this.renderRootWithScrollbar(renderWidth, scrollableRows);
+      const rootLines = this.renderRootWithScrollbar(renderWidth, scrollableRows);
+      if (liftedRenderableBeforeRender !== this.getLiftedRenderableComponent()) {
+        const updatedCluster = this.getStackedCluster(renderWidth, rawRows, true);
+        const updatedScrollableRows = Math.max(
+          1,
+          rawRows - updatedCluster.lines.length
+        );
+        return this.renderRootWithScrollbar(renderWidth, updatedScrollableRows);
+      }
+      return rootLines;
     } finally {
       this.renderingScrollableRoot = false;
     }
@@ -1308,12 +1326,12 @@ export class TerminalSplitCompositor {
   private renderRootWithScrollbar(
     renderWidth: number,
     scrollableRows: number,
-    hideLiftedSelector = true
+    hideLiftedRenderable = true
   ): string[] {
     const renderRoot = () =>
       this.originalRender?.(rootScrollbarContentWidth(renderWidth));
-    const lines = hideLiftedSelector
-      ? this.withLiftedSelectorHidden(renderRoot)
+    const lines = hideLiftedRenderable
+      ? this.withLiftedRenderableHidden(renderRoot)
       : renderRoot();
     const start = this.updateRootScrollState(lines ?? [], scrollableRows);
     const highlightedLines = this.visibleRootLines.map((line, index) =>
@@ -2110,43 +2128,55 @@ export class TerminalSplitCompositor {
       : [];
 
     const remainingRows = maxRows - leaseLines.length;
-    const liftedSelector = this.getLiftedSelectorComponent();
-    const selectorLines =
-      liftedSelector && remainingRows > 0
+    const liftedRenderable = this.getLiftedRenderableComponent();
+    const liftedRenderableLines =
+      liftedRenderable && remainingRows > 0
         ? this.withClusterRender(() =>
-            liftedSelector.render(width).slice(0, remainingRows)
+            liftedRenderable.render(width).slice(0, remainingRows)
           )
         : [];
 
-    return [...leaseLines, ...selectorLines];
+    return [...leaseLines, ...liftedRenderableLines];
   }
 
-  private withLiftedSelectorHidden<T>(render: () => T): T {
-    const selector = this.getLiftedSelectorComponent();
-    if (!selector) {
+  private withLiftedRenderableHidden<T>(render: () => T): T {
+    const liftedRenderable = this.getLiftedRenderableComponent();
+    if (!liftedRenderable) {
       return render();
     }
 
     const originalRenderDescriptor = Object.getOwnPropertyDescriptor(
-      selector,
+      liftedRenderable,
       "render"
     );
-    this.hidingLiftedSelectorRoot = true;
-    selector.render = () => [];
+    const hiddenRenderDescriptor =
+      originalRenderDescriptor && !originalRenderDescriptor.configurable
+        ? { value: () => [] }
+        : { configurable: true, value: () => [] };
+
+    this.hidingLiftedRenderableRoot = true;
     try {
+      Object.defineProperty(liftedRenderable, "render", hiddenRenderDescriptor);
       return render();
     } finally {
-      if (originalRenderDescriptor) {
-        Object.defineProperty(selector, "render", originalRenderDescriptor);
-      } else {
-        Reflect.deleteProperty(selector, "render");
+      try {
+        if (originalRenderDescriptor) {
+          Object.defineProperty(
+            liftedRenderable,
+            "render",
+            originalRenderDescriptor
+          );
+        } else {
+          Reflect.deleteProperty(liftedRenderable, "render");
+        }
+      } finally {
+        this.hidingLiftedRenderableRoot = false;
       }
-      this.hidingLiftedSelectorRoot = false;
     }
   }
 
-  private getLiftedSelectorComponent(): RenderableComponent | null {
-    if (this.hidingLiftedSelectorRoot) {
+  private getLiftedRenderableComponent(): RenderableComponent | null {
+    if (this.hidingLiftedRenderableRoot) {
       return null;
     }
 
@@ -2161,9 +2191,11 @@ export class TerminalSplitCompositor {
       return null;
     }
 
-    return isPiBuiltInSelectorComponent(focusedComponent)
-      ? focusedComponent
-      : null;
+    if (!canTemporarilyReplaceRender(focusedComponent)) {
+      return null;
+    }
+
+    return focusedComponent;
   }
 
   private getReplacementCluster(

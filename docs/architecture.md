@@ -68,7 +68,7 @@ Owns:
 
 Runtime lifecycle installation, send-triggered root scrollback bottom jumps, and `ui.select()` / `ui.confirm()` shim wiring are owned by `src/composition.ts` when that integration is enabled. The shim is scoped to this extension context, only takes over while the fixed compositor is installed, and falls back to Pi's original prompt methods otherwise.
 
-The fixed editor compositor also lifts focused Pi built-in selector components above the fixed editor by detecting focused TUI components whose constructor name ends with `SelectorComponent`. This is an intentional private-internals compatibility shim for built-ins such as `/model`; keep the detector narrow and covered by compositor tests.
+The fixed editor compositor also lifts focused renderable TUI components above the fixed editor when Pi swaps them into the editor slot and their `render` method can be safely hidden. This covers Pi built-in selectors such as `/model` and extension custom components such as `/review`; keep this covered by compositor tests.
 
 Editor popup rows, including slash-command autocomplete rows appended after the editor border, are reordered above the fixed editor frame in `src/fixed-editor/cluster.ts`. Preserve this ordering when changing editor row budgeting.
 
