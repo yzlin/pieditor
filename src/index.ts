@@ -12,6 +12,7 @@
  * - shell-completions (autocomplete wrapping for !/!! mode)
  * - file-picker (@ opens overlay file browser)
  * - raw-paste alt+v (paste clipboard text "raw" into editor, bypassing large-paste markers)
+ * - copy-editor alt+c (copy active prompt editor buffer raw)
  *
  * NOTE: This extension intentionally owns ctx.ui.setEditorComponent().
  * Disable other extensions that also call setEditorComponent (shell-completions/, file-picker.ts, raw-paste.ts)
@@ -58,5 +59,10 @@ export default function (pi: ExtensionAPI): void {
     handler: async (ctx) => {
       await composition.pasteClipboardRaw(ctx);
     },
+  });
+
+  pi.registerShortcut("alt+c", {
+    description: "Copy active prompt editor buffer as raw text",
+    handler: (ctx) => composition.copyEditorBuffer(ctx),
   });
 }

@@ -16,6 +16,7 @@ Current feature areas:
 - `!` / `!!` shell completions
 - top-border status bar
 - raw clipboard paste via `alt+v`
+- raw active prompt editor buffer copy via `alt+c` and `/copy-editor`
 - optional double-escape command trigger
 - slash-command remapping at submit time
 - opt-in editor chrome style config
@@ -39,6 +40,7 @@ Owns:
 - preview highlighter warmup
 - git invalidation triggers from tool/user bash events
 - fixed editor compositor lifecycle when `fixedEditor.enabled` is true
+- active prompt editor buffer copy readiness checks and clipboard writes
 
 ### `src/editor/*`
 Editor behavior only.
@@ -67,6 +69,8 @@ Owns:
 - above-editor lease surfaces used for fixed-mode transient UI, including the local `ui.select()` / `ui.confirm()` shim
 
 Runtime lifecycle installation, send-triggered root scrollback bottom jumps, and `ui.select()` / `ui.confirm()` shim wiring are owned by `src/composition.ts` when that integration is enabled. The shim is scoped to this extension context, only takes over while the fixed compositor is installed, and falls back to Pi's original prompt methods otherwise.
+
+Copy-editor behavior is also owned by `src/composition.ts`. It reads `EnhancedEditor.getText()` from the active prompt editor only, never transcript output, selection text, footer/status text, or replacement/overlay UI contents. It warns when the editor is not ready, reports `Editor buffer empty` without writing the clipboard for an empty buffer, and otherwise copies raw text through the same clipboard hook used by fixed-editor selection copy.
 
 The fixed editor compositor also lifts focused renderable TUI components above the fixed editor when Pi swaps them into the editor slot and their `render` method can be safely hidden. This covers Pi built-in selectors such as `/model` and extension custom components such as `/review`; keep this covered by compositor tests.
 
@@ -104,6 +108,10 @@ Shell completion providers and shell detection.
   - jump fixed-editor root scrollback to bottom for busy interactive input before Pi queues the follow-up
 - `alt+v`
   - paste raw clipboard text into the editor
+- `alt+c`
+  - copy the active prompt editor buffer as raw text through `composition.copyEditorBuffer()`
+- `/copy-editor`
+  - command-owned source for the same raw active prompt editor buffer copy path as `alt+c`
 
 ## Config layering
 

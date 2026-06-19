@@ -40,7 +40,7 @@ interface HarnessOptions {
   fixedEditorEnabled: boolean;
   terminalRows?: number;
   terminalWrite?: (data: string) => void;
-  copySelection?: (text: string) => void;
+  copySelection?: (text: string) => void | Promise<void>;
   rootLines?: string[];
   overlayVisible?: boolean;
 }
@@ -142,8 +142,8 @@ function rootContent(lines: string[] | undefined): string[] {
 
 function createFooterData(): ReadonlyFooterDataProvider {
   return {
-    getGitBranch: () => undefined,
-    getExtensionStatuses: () => ({}),
+    getGitBranch: () => null,
+    getExtensionStatuses: () => new Map<string, string>(),
     getAvailableProviderCount: () => 0,
     onBranchChange: () => () => undefined,
   } as ReadonlyFooterDataProvider;
@@ -207,6 +207,8 @@ function createHarness(options: HarnessOptions) {
     throw new Error("pieditor did not register editor and footer factories");
   }
 
+  const createEditorComponent = editorFactory;
+  const createFooterComponent = footerFactory;
   const tui = createMockTui(options);
   const theme = {
     borderColor: (value: string) => value,
@@ -220,18 +222,19 @@ function createHarness(options: HarnessOptions) {
   return {
     composition,
     footerData: createFooterData(),
-    footerFactory,
+    footerFactory: createFooterComponent,
     keybindings,
+    ctx,
     notifications,
     terminalInputHandlers,
     theme,
     tui,
     ui,
     createEditor() {
-      return editorFactory(tui as unknown as TUI, theme, keybindings);
+      return createEditorComponent(tui as unknown as TUI, theme, keybindings);
     },
     createFooter() {
-      return footerFactory(
+      return createFooterComponent(
         tui as unknown as TUI,
         {} as unknown as Theme,
         this.footerData
@@ -247,6 +250,104 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+describe("pieditor editor buffer copy", () => {
+  it("copies the active editor getText() exactly", async () => {
+    const copied: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: false,
+      copySelection: (text) => {
+        copied.push(text);
+      },
+    });
+    const editor = harness.createEditor();
+    editor.setText(" first line\nsecond line\n");
+
+    await harness.composition.copyEditorBuffer(harness.ctx);
+
+    expect(copied).toEqual([" first line\nsecond line\n"]);
+    expect(harness.notifications).toContainEqual({
+      message: "Copied 24 characters from editor",
+      level: "info",
+    });
+  });
+
+  it("does not write clipboard for an empty editor buffer", async () => {
+    const copied: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: false,
+      copySelection: (text) => {
+        copied.push(text);
+      },
+    });
+    harness.createEditor();
+
+    await harness.composition.copyEditorBuffer(harness.ctx);
+
+    expect(copied).toEqual([]);
+    expect(harness.notifications).toContainEqual({
+      message: "Editor buffer empty",
+      level: "info",
+    });
+  });
+
+  it("warns with error text when clipboard copy fails", async () => {
+    const harness = createHarness({
+      fixedEditorEnabled: false,
+      copySelection: () => {
+        throw new Error("clipboard denied");
+      },
+    });
+    const editor = harness.createEditor();
+    editor.setText("copy me");
+
+    await harness.composition.copyEditorBuffer(harness.ctx);
+
+    expect(harness.notifications).toContainEqual({
+      message: "Editor copy failed: clipboard denied",
+      level: "warning",
+    });
+  });
+
+  it("does not copy when the editor is not ready", async () => {
+    const copied: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: false,
+      copySelection: (text) => {
+        copied.push(text);
+      },
+    });
+
+    await harness.composition.copyEditorBuffer(harness.ctx);
+
+    expect(copied).toEqual([]);
+    expect(harness.notifications).toContainEqual({
+      message: "Editor not ready",
+      level: "warning",
+    });
+  });
+
+  it("does not copy while overlay UI is active", async () => {
+    const copied: string[] = [];
+    const harness = createHarness({
+      fixedEditorEnabled: false,
+      overlayVisible: true,
+      copySelection: (text) => {
+        copied.push(text);
+      },
+    });
+    const editor = harness.createEditor();
+    editor.setText("copy me");
+
+    await harness.composition.copyEditorBuffer(harness.ctx);
+
+    expect(copied).toEqual([]);
+    expect(harness.notifications).toContainEqual({
+      message: "Editor not ready",
+      level: "warning",
+    });
+  });
 });
 
 describe("pieditor fixed editor composition", () => {

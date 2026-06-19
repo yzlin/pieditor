@@ -34,19 +34,23 @@ function createTempDir(): string {
 }
 
 function createHarness(homeDir?: string) {
-  let command: HarnessCommandOptions | null = null;
+  const commands = new Map<string, HarnessCommandOptions>();
   let fixedEditorConfig = { ...DEFAULT_FIXED_EDITOR_CONFIG };
+  let copyEditorCallCount = 0;
 
   const notifications: Array<{ message: string; level: string }> = [];
   const pi = {
-    registerCommand(_name: string, options: RegisteredCommandOptions) {
-      command = options as HarnessCommandOptions;
+    registerCommand(name: string, options: RegisteredCommandOptions) {
+      commands.set(name, options as HarnessCommandOptions);
     },
   } as ExtensionAPI;
 
   registerPieditorCommands(
     pi,
     {
+      async copyEditorBuffer() {
+        copyEditorCallCount += 1;
+      },
       getFixedEditorConfig() {
         return fixedEditorConfig;
       },
@@ -57,14 +61,19 @@ function createHarness(homeDir?: string) {
     { homeDir }
   );
 
-  const registeredCommand = command as HarnessCommandOptions | null;
-  if (!registeredCommand) {
-    throw new Error("pieditor command was not registered");
+  function getCommand(name: string): HarnessCommandOptions {
+    const command = commands.get(name);
+    if (!command) {
+      throw new Error(`${name} command was not registered`);
+    }
+    return command;
   }
 
   return {
-    command: registeredCommand,
+    command: getCommand("pieditor"),
     notifications,
+    getCommand,
+    getCopyEditorCallCount: () => copyEditorCallCount,
     getFixedEditorConfig: () => fixedEditorConfig,
     createContext(cwd: string) {
       return {
@@ -89,6 +98,15 @@ afterEach(() => {
 });
 
 describe("pieditor command", () => {
+  it("registers copy-editor command using shared runtime behavior", async () => {
+    const harness = createHarness();
+    await harness
+      .getCommand("copy-editor")
+      .handler("", harness.createContext(process.cwd()) as never);
+
+    expect(harness.getCopyEditorCallCount()).toBe(1);
+  });
+
   it("enables fixed editor mode live and saves global config", async () => {
     const root = createTempDir();
     const homeDir = join(root, "home");

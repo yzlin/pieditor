@@ -32,10 +32,11 @@ import { invalidateGitBranch, invalidateGitStatus } from "./status-bar-git.js";
 
 type FixedEditorConfigListener = (config: FixedEditorRuntimeConfig) => void;
 
-type CopySelection = (text: string) => Promise<void> | void;
+type CopyText = (text: string) => Promise<void> | void;
 
 interface PieditorCompositionOptions {
-  copySelection?: CopySelection;
+  copySelection?: CopyText;
+  copyText?: CopyText;
 }
 
 interface PieditorRuntime {
@@ -133,13 +134,18 @@ export function createPieditorComposition(
     return runtime.activeEditorTui?.getShowHardwareCursor() ?? false;
   }
 
+  function getCopyText(): CopyText {
+    return options.copyText ?? options.copySelection ?? copyToClipboard;
+  }
+
+  function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   function copyFixedEditorSelection(text: string): void {
-    const copy = options.copySelection ?? copyToClipboard;
-    const copyPromise = Promise.resolve(copy(text));
-    copyPromise.catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
+    Promise.resolve(getCopyText()(text)).catch((error: unknown) => {
       runtime.activeContext?.ui.notify(
-        `pieditor fixed-editor copy failed: ${message}`,
+        `pieditor fixed-editor copy failed: ${getErrorMessage(error)}`,
         "warning"
       );
     });
@@ -457,6 +463,36 @@ export function createPieditorComposition(
         return;
       }
       await runtime.activeEditor.pasteClipboardRawAtCursor();
+    },
+
+    async copyEditorBuffer(ctx: ExtensionContext): Promise<void> {
+      const tui = runtime.activeEditorTui as TuiLike | null;
+      if (
+        !ctx.hasUI ||
+        !runtime.activeEditor ||
+        !tui ||
+        tui.hasOverlay?.() ||
+        hasActiveReplacementSurfaceLease()
+      ) {
+        ctx.ui.notify("Editor not ready", "warning");
+        return;
+      }
+
+      const text = runtime.activeEditor.getText();
+      if (text.length === 0) {
+        ctx.ui.notify("Editor buffer empty", "info");
+        return;
+      }
+
+      try {
+        await getCopyText()(text);
+        ctx.ui.notify(`Copied ${text.length} characters from editor`, "info");
+      } catch (error) {
+        ctx.ui.notify(
+          `Editor copy failed: ${getErrorMessage(error)}`,
+          "warning"
+        );
+      }
     },
   };
 }

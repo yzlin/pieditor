@@ -19,6 +19,7 @@ This extension currently provides:
 - `@`-triggered file picking for inserting `@path` refs at the cursor
 - shell completions in `!` / `!!` mode
 - `alt+v` raw clipboard paste that bypasses Pi's large-paste markers
+- `alt+c` / `/copy-editor` raw active prompt editor buffer copy
 - optional remapping of the editor's empty-editor double-escape gesture to an extension command such as `/anycopy`
 - configurable command remapping (e.g. make `/tree` execute `/anycopy` instead)
 - dedicated `caveman` status-bar segment that displays the standalone caveman extension's generic `caveman` status when active
@@ -37,6 +38,7 @@ Notable interactions:
 - The file picker's search includes files inside symlinked directories only when their real path stays under the picker root, including when `respectGitignore` is enabled for a git repo
 - The file picker's search box uses Pi's shared `Input` editing behavior for word/home/end cursor movement and related text editing shortcuts
 - Press `alt+v` to paste clipboard text raw into the editor
+- Press `alt+c` or run `/copy-editor` to copy the active prompt editor buffer as raw text; it copies only current editor text, not transcript output, selection text, footer/status text, or overlay/replacement UI contents. If the editor is empty it reports `Editor buffer empty` and does not modify the clipboard.
 - If the standalone `extensions/caveman` extension is loaded, built-in presets show the active `🪨 caveman` indicator through the dedicated `caveman` segment; custom segment lists must include `caveman` or `extension_statuses` to show it.
 - If the standalone `extensions/fast` extension is loaded, status key `fast` is appended to the `model` segment as compact `⚡` or `⚡*` without a dot separator. `extension_statuses` suppresses `fast` when `model` is configured.
 - Optionally configure `doubleEscapeCommand` in `~/.pi/agent/pieditor.json` or `.pi/pieditor.json` to invoke an extension command on double-escape when the editor is empty and Pi is idle
@@ -284,11 +286,13 @@ Current scope:
 - If the configured command is not a registered extension command, the extension warns and falls back to native behavior
 - Command remapping intercepts at the editor submission layer via `onSubmit`, so it applies uniformly to all submit paths (Enter, double-escape gesture, etc.) and works with any command type — built-in, extension, skill, or template. If a remap target doesn't exist as a registered command, pi treats it as a regular prompt
 - Because this extension owns `setEditorComponent()`, disable standalone editor-replacement extensions such as `shell-completions/`, `file-picker.ts`, and `raw-paste.ts` to avoid conflicts
+- `alt+c` and `/copy-editor` share the same copy path and only run when the active prompt editor is ready; overlays or replacement-surface leases report `Editor not ready`.
 - Fixed editor mode conflicts with `pi-powerline-footer`'s fixed editor mode; enable only one fixed editor compositor at a time
 
 ## Manual validation notes
 
 - Start Pi without `fixedEditor.enabled` and confirm the native editor remains unchanged
+- Type text in the prompt editor, press `alt+c`, then run `/copy-editor`; confirm both copy the same raw editor buffer, empty buffers report `Editor buffer empty`, and active overlays report `Editor not ready`
 - Run `/pieditor fixed-editor on`, `/pieditor fixed-editor off`, `/pieditor fixed-editor toggle`, and `/pieditor fixed-editor status`; confirm notifications, live behavior, and global `~/.pi/agent/pieditor.json` persistence
 - With fixed editor enabled, confirm mouse wheel scrolling follows `mouseScroll` and configured scroll shortcuts move the fixed editor viewport
 - Add project `.pi/pieditor.json` with `fixedEditor.enabled` set opposite the global value, restart/reload Pi, and confirm the project value wins; `status` should report the project override

@@ -14,6 +14,7 @@ import {
 } from "./fixed-editor/replacement-lease.js";
 
 interface FixedEditorRuntimeHooks {
+  copyEditorBuffer(ctx: ExtensionCommandContext): Promise<void>;
   getFixedEditorConfig(): FixedEditorRuntimeConfig;
   setFixedEditorEnabled(enabled: boolean): void;
 }
@@ -171,6 +172,12 @@ export function registerPieditorCommands(
   runtime: FixedEditorRuntimeHooks,
   options: PieditorCommandOptions = {}
 ): void {
+  pi.registerCommand("copy-editor", {
+    description: "Copy the active prompt editor buffer as raw text",
+    handler: (_args: string, ctx: ExtensionCommandContext) =>
+      runtime.copyEditorBuffer(ctx),
+  });
+
   pi.registerCommand("pieditor", {
     description:
       "Manage pieditor runtime settings: /pieditor fixed-editor [on|off|toggle|status]",
