@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Fall back to compact status-bar segment text when narrow status rows overflow.
+
 ### Deprecated
 
 ### Removed

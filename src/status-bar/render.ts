@@ -15,6 +15,7 @@ import type {
   ColorScheme,
   StatusBarContext,
   StatusBarPresetDef,
+  StatusBarRenderMode,
   StatusBarSegmentId,
   UsageStats,
 } from "./types.js";
@@ -27,11 +28,32 @@ export interface AmpStatusLayout {
   bottomContent: string;
 }
 
+interface ComputedStatusRow {
+  leftContent: string;
+  rightContent: string;
+  content: string;
+  width: number;
+}
+
+type StatusRowRenderer = (
+  leftSegments: string[],
+  rightSegments: string[],
+  mode: StatusBarRenderMode
+) => ComputedStatusRow;
+
+const EMPTY_STATUS_ROW: ComputedStatusRow = {
+  leftContent: "",
+  rightContent: "",
+  content: "",
+  width: 0,
+};
+
 function renderSegmentContent(
   segId: StatusBarSegmentId,
-  ctx: StatusBarContext
+  ctx: StatusBarContext,
+  mode: StatusBarRenderMode = "normal"
 ): string | null {
-  const rendered = renderStatusBarSegment(segId, ctx);
+  const rendered = renderStatusBarSegment(segId, ctx, mode);
   return rendered.visible && rendered.content ? rendered.content : null;
 }
 
@@ -39,12 +61,14 @@ function buildContentFromParts(
   parts: string[],
   presetDef: StatusBarPresetDef,
   theme: Theme,
-  colors: ColorScheme
+  colors: ColorScheme,
+  mode: StatusBarRenderMode = "normal"
 ): string {
   if (!parts.length) {
     return "";
   }
-  const coloredSeparator = fg(theme, "separator", presetDef.separator, colors);
+  const separator = mode === "compact" ? " | " : presetDef.separator;
+  const coloredSeparator = fg(theme, "separator", separator, colors);
   return ` ${parts.join(coloredSeparator)} `;
 }
 
@@ -64,10 +88,11 @@ function fitToWidth(content: string, width: number): string {
 
 function renderVisibleSegments(
   segmentIds: StatusBarSegmentId[],
-  ctx: StatusBarContext
+  ctx: StatusBarContext,
+  mode: StatusBarRenderMode = "normal"
 ): string[] {
   return segmentIds.flatMap((segId) => {
-    const content = renderSegmentContent(segId, ctx);
+    const content = renderSegmentContent(segId, ctx, mode);
     return content ? [content] : [];
   });
 }
@@ -75,30 +100,86 @@ function renderVisibleSegments(
 function renderStatusBarContent(
   segmentIds: StatusBarSegmentId[],
   presetDef: StatusBarPresetDef,
-  ctx: StatusBarContext
+  ctx: StatusBarContext,
+  mode: StatusBarRenderMode = "normal"
 ): string {
   return buildContentFromParts(
-    renderVisibleSegments(segmentIds, ctx),
+    renderVisibleSegments(segmentIds, ctx, mode),
     presetDef,
     ctx.theme,
-    ctx.colors
+    ctx.colors,
+    mode
   );
 }
 
-function computeTopContent(
+function computeFittingRow(options: {
+  ctx: StatusBarContext;
+  leftSegmentIds: StatusBarSegmentId[];
+  rightSegmentIds: StatusBarSegmentId[];
+  renderRow: StatusRowRenderer;
+  width: number;
+}): ComputedStatusRow {
+  const { ctx, leftSegmentIds, rightSegmentIds, renderRow, width } = options;
+  const normalLeftSegments = renderVisibleSegments(leftSegmentIds, ctx);
+  const normalRightSegments = renderVisibleSegments(rightSegmentIds, ctx);
+
+  if (!(normalLeftSegments.length || normalRightSegments.length)) {
+    return EMPTY_STATUS_ROW;
+  }
+
+  const normalRow = renderRow(normalLeftSegments, normalRightSegments, "normal");
+  if (normalRow.width <= width) {
+    return normalRow;
+  }
+
+  const compactLeftSegments = renderVisibleSegments(
+    leftSegmentIds,
+    ctx,
+    "compact"
+  );
+  const compactRightSegments = renderVisibleSegments(
+    rightSegmentIds,
+    ctx,
+    "compact"
+  );
+
+  let left = compactLeftSegments;
+  let right = compactRightSegments;
+  let row = renderRow(left, right, "compact");
+
+  while (row.width > width) {
+    if (right.length > 0) {
+      right = right.slice(0, -1);
+      row = renderRow(left, right, "compact");
+      continue;
+    }
+
+    if (left.length > 0) {
+      left = left.slice(0, -1);
+      row = renderRow(left, right, "compact");
+      continue;
+    }
+
+    break;
+  }
+
+  return row;
+}
+
+function computeSplitRowContent(
   ctx: StatusBarContext,
   presetDef: StatusBarPresetDef,
+  leftSegmentIds: StatusBarSegmentId[],
+  rightSegmentIds: StatusBarSegmentId[],
   width: number
-): string {
-  const leftSegments = renderVisibleSegments(presetDef.leftSegments, ctx);
-  const rightSegments = renderVisibleSegments(presetDef.rightSegments, ctx);
-
-  const getSide = (segments: string[]) => {
+): ComputedStatusRow {
+  const getSide = (segments: string[], mode: StatusBarRenderMode) => {
     const content = buildContentFromParts(
       segments,
       presetDef,
       ctx.theme,
-      ctx.colors
+      ctx.colors,
+      mode
     );
 
     return {
@@ -107,45 +188,99 @@ function computeTopContent(
     };
   };
 
-  if (!(leftSegments.length || rightSegments.length)) {
-    return "";
-  }
+  const renderRow: StatusRowRenderer = (left, right, mode) => {
+    const leftSide = getSide(left, mode);
+    const rightSide = getSide(right, mode);
 
-  let left = leftSegments;
-  let right = rightSegments;
-  let leftSide = getSide(left);
-  let rightSide = getSide(right);
-
-  while (leftSide.width + rightSide.width > width) {
-    if (right.length > 0) {
-      right = right.slice(0, -1);
-      rightSide = getSide(right);
-      continue;
+    if (!(leftSide.content || rightSide.content)) {
+      return EMPTY_STATUS_ROW;
     }
 
-    if (left.length > 0) {
-      left = left.slice(0, -1);
-      leftSide = getSide(left);
-      continue;
+    if (!leftSide.content) {
+      const content = `${" ".repeat(Math.max(width - rightSide.width, 0))}${rightSide.content}`;
+      return {
+        leftContent: "",
+        rightContent: rightSide.content,
+        content,
+        width: visibleWidth(content),
+      };
     }
 
-    break;
-  }
+    if (!rightSide.content) {
+      return {
+        leftContent: leftSide.content,
+        rightContent: "",
+        content: leftSide.content,
+        width: leftSide.width,
+      };
+    }
 
-  if (!(leftSide.content || rightSide.content)) {
-    return "";
-  }
+    const gapWidth = Math.max(width - leftSide.width - rightSide.width, 1);
+    const content = `${leftSide.content}${" ".repeat(gapWidth)}${rightSide.content}`;
+    return {
+      leftContent: leftSide.content,
+      rightContent: rightSide.content,
+      content,
+      width: visibleWidth(content),
+    };
+  };
 
-  if (!leftSide.content) {
-    return `${" ".repeat(Math.max(width - rightSide.width, 0))}${rightSide.content}`;
-  }
+  return computeFittingRow({
+    ctx,
+    leftSegmentIds,
+    rightSegmentIds,
+    renderRow,
+    width,
+  });
+}
 
-  if (!rightSide.content) {
-    return leftSide.content;
-  }
+function computeRowContent(
+  ctx: StatusBarContext,
+  presetDef: StatusBarPresetDef,
+  leftSegmentIds: StatusBarSegmentId[],
+  rightSegmentIds: StatusBarSegmentId[],
+  width: number
+): string {
+  return computeSplitRowContent(
+    ctx,
+    presetDef,
+    leftSegmentIds,
+    rightSegmentIds,
+    width
+  ).content;
+}
 
-  const gapWidth = Math.max(width - leftSide.width - rightSide.width, 1);
-  return `${leftSide.content}${" ".repeat(gapWidth)}${rightSide.content}`;
+function computeUnpaddedRowContent(
+  ctx: StatusBarContext,
+  presetDef: StatusBarPresetDef,
+  leftSegmentIds: StatusBarSegmentId[],
+  rightSegmentIds: StatusBarSegmentId[],
+  width: number
+): string {
+  const renderRow: StatusRowRenderer = (left, right, mode) => {
+    const content = buildContentFromParts(
+      [...left, ...right],
+      presetDef,
+      ctx.theme,
+      ctx.colors,
+      mode
+    );
+
+    return {
+      leftContent: "",
+      rightContent: "",
+      content,
+      width: visibleWidth(content),
+    };
+  };
+
+  return computeFittingRow({
+    ctx,
+    leftSegmentIds,
+    rightSegmentIds,
+    renderRow,
+    width,
+  }).content;
 }
 
 function collectUsageStats(ctx: ExtensionContext): {
@@ -244,8 +379,9 @@ export function buildAmpStatusLayout(options: {
   config: StatusBarRuntimeConfig;
   sessionStartTime: number;
   theme: Theme;
+  width?: number;
 }): AmpStatusLayout {
-  const { ctx, footerData, config, sessionStartTime, theme } = options;
+  const { ctx, footerData, config, sessionStartTime, theme, width } = options;
   if (!(config.enabled && ctx)) {
     return { topLeftContent: "", topRightContent: "", bottomContent: "" };
   }
@@ -264,10 +400,35 @@ export function buildAmpStatusLayout(options: {
   const topRightSegmentIds = presetDef.rightSegments.filter(
     (segId) => !AMP_BOTTOM_SEGMENTS.has(segId)
   );
-  const bottomSegmentIds = [
-    ...presetDef.leftSegments,
-    ...presetDef.rightSegments,
-  ].filter((segId) => AMP_BOTTOM_SEGMENTS.has(segId));
+  const bottomLeftSegmentIds = presetDef.leftSegments.filter((segId) =>
+    AMP_BOTTOM_SEGMENTS.has(segId)
+  );
+  const bottomRightSegmentIds = presetDef.rightSegments.filter((segId) =>
+    AMP_BOTTOM_SEGMENTS.has(segId)
+  );
+  const contentWidth = typeof width === "number" ? Math.max(width - 2, 0) : null;
+
+  if (contentWidth !== null) {
+    const topContent = computeSplitRowContent(
+      statusBarContext,
+      presetDef,
+      topLeftSegmentIds,
+      topRightSegmentIds,
+      contentWidth
+    );
+    return {
+      topLeftContent: topContent.leftContent,
+      topRightContent: topContent.rightContent,
+      bottomContent: computeUnpaddedRowContent(
+        statusBarContext,
+        presetDef,
+        bottomLeftSegmentIds,
+        bottomRightSegmentIds,
+        contentWidth
+      ),
+    };
+  }
+
   return {
     topLeftContent: renderStatusBarContent(
       topLeftSegmentIds,
@@ -280,7 +441,7 @@ export function buildAmpStatusLayout(options: {
       statusBarContext
     ),
     bottomContent: renderStatusBarContent(
-      bottomSegmentIds,
+      [...bottomLeftSegmentIds, ...bottomRightSegmentIds],
       presetDef,
       statusBarContext
     ),
@@ -304,7 +465,13 @@ export function renderStatusBarLine(options: {
     sessionStartTime,
     theme
   );
-  const content = computeTopContent(statusBarContext, presetDef, width);
+  const content = computeRowContent(
+    statusBarContext,
+    presetDef,
+    presetDef.leftSegments,
+    presetDef.rightSegments,
+    width
+  );
 
   if (!content) {
     return theme.fg("borderMuted", "─".repeat(width));

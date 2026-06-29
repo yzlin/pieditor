@@ -9,12 +9,24 @@ import type {
   RenderedSegment,
   SemanticColor,
   StatusBarContext,
+  StatusBarRenderMode,
   StatusBarSegment,
   StatusBarSegmentId,
 } from "./types.js";
 
 const TRAILING_STATUS_DECORATION_PATTERN_SOURCE = String.raw`(\u001B\[[0-9;]*m|\s|·|\|)+$`;
-const TOP_LEVEL_REGEX_1 = new RegExp(TRAILING_STATUS_DECORATION_PATTERN_SOURCE);
+const TRAILING_STATUS_DECORATION_PATTERN = new RegExp(
+  TRAILING_STATUS_DECORATION_PATTERN_SOURCE
+);
+
+const THINKING_LEVEL_TEXT: Record<string, string> = {
+  off: "off",
+  minimal: "min",
+  low: "low",
+  medium: "med",
+  high: "high",
+  xhigh: "xhigh",
+};
 
 function color(
   ctx: StatusBarContext,
@@ -58,6 +70,108 @@ function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
+function formatTime(ctx: StatusBarContext): string {
+  const opts = ctx.options.time ?? {};
+  const now = new Date();
+
+  let hours = now.getHours();
+  let suffix = "";
+  if (opts.format === "12h") {
+    suffix = hours >= 12 ? "pm" : "am";
+    hours = hours % 12 || 12;
+  }
+
+  const mins = now.getMinutes().toString().padStart(2, "0");
+  let timeStr = `${hours}:${mins}`;
+  if (opts.showSeconds) {
+    timeStr += `:${now.getSeconds().toString().padStart(2, "0")}`;
+  }
+  return `${timeStr}${suffix}`;
+}
+
+function getTotalTokens(ctx: StatusBarContext): number {
+  return (
+    ctx.usageStats.input +
+    ctx.usageStats.output +
+    ctx.usageStats.cacheRead +
+    ctx.usageStats.cacheWrite
+  );
+}
+
+function getThinkingLevelText(level: string): string {
+  return THINKING_LEVEL_TEXT[level] || level;
+}
+
+function renderThinkingContent(
+  ctx: StatusBarContext,
+  level: string,
+  content: string
+): RenderedSegment {
+  if (level === "high" || level === "xhigh") {
+    return { content: rainbow(content), visible: true };
+  }
+  return { content: color(ctx, "thinking", content), visible: true };
+}
+
+function renderCompactToken(
+  ctx: StatusBarContext,
+  label: string,
+  value: number
+): RenderedSegment {
+  if (!value) {
+    return { content: "", visible: false };
+  }
+  return {
+    content: color(ctx, "tokens", `${label}:${formatTokens(value)}`),
+    visible: true,
+  };
+}
+
+function getModelName(ctx: StatusBarContext): string {
+  let modelName = ctx.model?.name || ctx.model?.id || "no-model";
+  if (modelName.startsWith("Claude ")) {
+    modelName = modelName.slice(7);
+  }
+  return modelName;
+}
+
+function getPathText(ctx: StatusBarContext, compact = false): string {
+  const opts = ctx.options.path ?? {};
+  const mode = compact ? "basename" : (opts.mode ?? "basename");
+
+  let pwd = process.cwd();
+  const home = process.env.HOME || process.env.USERPROFILE;
+
+  if (mode === "basename") {
+    return basename(pwd) || pwd;
+  }
+
+  if (home && pwd.startsWith(home)) {
+    pwd = `~${pwd.slice(home.length)}`;
+  }
+
+  if (pwd.startsWith("/work/")) {
+    pwd = pwd.slice(6);
+  }
+
+  if (mode === "abbreviated") {
+    const maxLen = opts.maxLength ?? 40;
+    if (pwd.length > maxLen) {
+      pwd = `…${pwd.slice(-(maxLen - 1))}`;
+    }
+  }
+
+  return pwd;
+}
+
+function stripCavemanPrefix(status: string): string {
+  return status.replace(/^🪨\s*/, "");
+}
+
+function getShortHostname(): string {
+  return osHostname().split(".")[0] || "host";
+}
+
 const piSegment: StatusBarSegment = {
   id: "pi",
   render(ctx) {
@@ -66,6 +180,13 @@ const piSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return { content: color(ctx, "pi", `${icons.pi} `), visible: true };
+  },
+  renderCompact(ctx) {
+    const icons = getIcons();
+    if (!icons.pi) {
+      return { content: "", visible: false };
+    }
+    return { content: color(ctx, "pi", icons.pi), visible: true };
   },
 };
 
@@ -93,10 +214,7 @@ const modelSegment: StatusBarSegment = {
     const icons = getIcons();
     const opts = ctx.options.model ?? {};
 
-    let modelName = ctx.model?.name || ctx.model?.id || "no-model";
-    if (modelName.startsWith("Claude ")) {
-      modelName = modelName.slice(7);
-    }
+    const modelName = getModelName(ctx);
 
     let content = withIcon(icons.model, modelName);
     const fastModeStatus = resolveFastModeModelStatus(ctx);
@@ -115,39 +233,28 @@ const modelSegment: StatusBarSegment = {
 
     return { content: color(ctx, "model", content), visible: true };
   },
+  renderCompact(ctx) {
+    let content = getModelName(ctx);
+    const fastModeStatus = resolveFastModeModelStatus(ctx);
+    if (fastModeStatus) {
+      content += ` ${fastModeStatus}`;
+    }
+    return { content: color(ctx, "model", content), visible: true };
+  },
 };
 
 const pathSegment: StatusBarSegment = {
   id: "path",
   render(ctx) {
     const icons = getIcons();
-    const opts = ctx.options.path ?? {};
-    const mode = opts.mode ?? "basename";
-
-    let pwd = process.cwd();
-    const home = process.env.HOME || process.env.USERPROFILE;
-
-    if (mode === "basename") {
-      pwd = basename(pwd) || pwd;
-    } else {
-      if (home && pwd.startsWith(home)) {
-        pwd = `~${pwd.slice(home.length)}`;
-      }
-
-      if (pwd.startsWith("/work/")) {
-        pwd = pwd.slice(6);
-      }
-
-      if (mode === "abbreviated") {
-        const maxLen = opts.maxLength ?? 40;
-        if (pwd.length > maxLen) {
-          pwd = `…${pwd.slice(-(maxLen - 1))}`;
-        }
-      }
-    }
-
     return {
-      content: color(ctx, "path", withIcon(icons.folder, pwd)),
+      content: color(ctx, "path", withIcon(icons.folder, getPathText(ctx))),
+      visible: true,
+    };
+  },
+  renderCompact(ctx) {
+    return {
+      content: color(ctx, "path", getPathText(ctx, true)),
       visible: true,
     };
   },
@@ -207,26 +314,48 @@ const gitSegment: StatusBarSegment = {
       ? { content, visible: true }
       : { content: "", visible: false };
   },
+  renderCompact(ctx) {
+    const opts = ctx.options.git ?? {};
+    const { branch, staged, unstaged, untracked } = ctx.git;
+    const hasChanges = staged > 0 || unstaged > 0 || untracked > 0;
+    if (!(branch || hasChanges)) {
+      return { content: "", visible: false };
+    }
+
+    const parts: string[] = [];
+    if (opts.showBranch !== false && branch) {
+      parts.push(branch);
+    }
+    if (opts.showUnstaged !== false && unstaged > 0) {
+      parts.push(`*${unstaged}`);
+    }
+    if (opts.showStaged !== false && staged > 0) {
+      parts.push(`+${staged}`);
+    }
+    if (opts.showUntracked !== false && untracked > 0) {
+      parts.push(`?${untracked}`);
+    }
+
+    const branchColor: SemanticColor = hasChanges ? "gitDirty" : "gitClean";
+    return parts.length
+      ? { content: color(ctx, branchColor, parts.join(" ")), visible: true }
+      : { content: "", visible: false };
+  },
 };
 
 const thinkingSegment: StatusBarSegment = {
   id: "thinking",
   render(ctx) {
     const level = ctx.thinkingLevel || "off";
-    const levelText: Record<string, string> = {
-      off: "off",
-      minimal: "min",
-      low: "low",
-      medium: "med",
-      high: "high",
-      xhigh: "xhigh",
-    };
-
-    const content = `think:${levelText[level] || level}`;
-    if (level === "high" || level === "xhigh") {
-      return { content: rainbow(content), visible: true };
-    }
-    return { content: color(ctx, "thinking", content), visible: true };
+    return renderThinkingContent(
+      ctx,
+      level,
+      `think:${getThinkingLevelText(level)}`
+    );
+  },
+  renderCompact(ctx) {
+    const level = ctx.thinkingLevel || "off";
+    return renderThinkingContent(ctx, level, getThinkingLevelText(level));
   },
 };
 
@@ -242,6 +371,17 @@ const cavemanSegment: StatusBarSegment = {
 
     return {
       content: color(ctx, "thinking", status),
+      visible: true,
+    };
+  },
+  renderCompact(ctx) {
+    const status = ctx.extensionStatuses.get(CAVEMAN_EXTENSION_STATUS_KEY);
+    if (!status || visibleWidth(status) <= 0) {
+      return { content: "", visible: false };
+    }
+
+    return {
+      content: color(ctx, "thinking", stripCavemanPrefix(status)),
       visible: true,
     };
   },
@@ -263,6 +403,9 @@ const tokenInSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    return renderCompactToken(ctx, "I", ctx.usageStats.input);
+  },
 };
 
 const tokenOutSegment: StatusBarSegment = {
@@ -281,17 +424,16 @@ const tokenOutSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    return renderCompactToken(ctx, "O", ctx.usageStats.output);
+  },
 };
 
 const tokenTotalSegment: StatusBarSegment = {
   id: "token_total",
   render(ctx) {
     const icons = getIcons();
-    const total =
-      ctx.usageStats.input +
-      ctx.usageStats.output +
-      ctx.usageStats.cacheRead +
-      ctx.usageStats.cacheWrite;
+    const total = getTotalTokens(ctx);
     if (!total) {
       return { content: "", visible: false };
     }
@@ -303,6 +445,9 @@ const tokenTotalSegment: StatusBarSegment = {
       ),
       visible: true,
     };
+  },
+  renderCompact(ctx) {
+    return renderCompactToken(ctx, "T", getTotalTokens(ctx));
   },
 };
 
@@ -346,6 +491,21 @@ const contextPctSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    if (!ctx.contextWindow) {
+      return { content: "", visible: false };
+    }
+    const text = `${ctx.contextPercent.toFixed(1)}%`;
+
+    if (ctx.contextPercent > 90) {
+      return { content: color(ctx, "contextError", text), visible: true };
+    }
+    if (ctx.contextPercent > 70) {
+      return { content: color(ctx, "contextWarn", text), visible: true };
+    }
+
+    return { content: color(ctx, "context", text), visible: true };
+  },
 };
 
 const contextTotalSegment: StatusBarSegment = {
@@ -364,6 +524,15 @@ const contextTotalSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    if (!ctx.contextWindow) {
+      return { content: "", visible: false };
+    }
+    return {
+      content: color(ctx, "context", formatTokens(ctx.contextWindow)),
+      visible: true,
+    };
+  },
 };
 
 const timeSpentSegment: StatusBarSegment = {
@@ -379,30 +548,23 @@ const timeSpentSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    const elapsed = Date.now() - ctx.sessionStartTime;
+    if (elapsed < 1000) {
+      return { content: "", visible: false };
+    }
+    return { content: formatDuration(elapsed), visible: true };
+  },
 };
 
 const timeSegment: StatusBarSegment = {
   id: "time",
   render(ctx) {
     const icons = getIcons();
-    const opts = ctx.options.time ?? {};
-    const now = new Date();
-
-    let hours = now.getHours();
-    let suffix = "";
-    if (opts.format === "12h") {
-      suffix = hours >= 12 ? "pm" : "am";
-      hours = hours % 12 || 12;
-    }
-
-    const mins = now.getMinutes().toString().padStart(2, "0");
-    let timeStr = `${hours}:${mins}`;
-    if (opts.showSeconds) {
-      timeStr += `:${now.getSeconds().toString().padStart(2, "0")}`;
-    }
-    timeStr += suffix;
-
-    return { content: withIcon(icons.time, timeStr), visible: true };
+    return { content: withIcon(icons.time, formatTime(ctx)), visible: true };
+  },
+  renderCompact(ctx) {
+    return { content: formatTime(ctx), visible: true };
   },
 };
 
@@ -415,6 +577,9 @@ const sessionSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    return { content: ctx.sessionId?.slice(0, 8) || "new", visible: true };
+  },
 };
 
 const hostnameSegment: StatusBarSegment = {
@@ -422,9 +587,12 @@ const hostnameSegment: StatusBarSegment = {
   render() {
     const icons = getIcons();
     return {
-      content: withIcon(icons.host, osHostname().split(".")[0] || "host"),
+      content: withIcon(icons.host, getShortHostname()),
       visible: true,
     };
+  },
+  renderCompact() {
+    return { content: getShortHostname(), visible: true };
   },
 };
 
@@ -446,6 +614,9 @@ const cacheReadSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    return renderCompactToken(ctx, "CR", ctx.usageStats.cacheRead);
+  },
 };
 
 const cacheWriteSegment: StatusBarSegment = {
@@ -466,6 +637,9 @@ const cacheWriteSegment: StatusBarSegment = {
       visible: true,
     };
   },
+  renderCompact(ctx) {
+    return renderCompactToken(ctx, "CW", ctx.usageStats.cacheWrite);
+  },
 };
 
 function shouldRenderExtensionStatus(
@@ -485,7 +659,22 @@ function shouldRenderExtensionStatus(
 }
 
 function stripExtensionStatusSuffix(value: string): string {
-  return value.replace(TOP_LEVEL_REGEX_1, "");
+  return value.replace(TRAILING_STATUS_DECORATION_PATTERN, "");
+}
+
+function getVisibleExtensionStatusParts(ctx: StatusBarContext): string[] {
+  const parts: string[] = [];
+  for (const [key, value] of ctx.extensionStatuses.entries()) {
+    if (!shouldRenderExtensionStatus(ctx, key, value)) {
+      continue;
+    }
+
+    const stripped = stripExtensionStatusSuffix(value);
+    if (visibleWidth(stripped) > 0) {
+      parts.push(stripped);
+    }
+  }
+  return parts;
 }
 
 const extensionStatusesSegment: StatusBarSegment = {
@@ -495,22 +684,22 @@ const extensionStatusesSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
 
-    const parts: string[] = [];
-    for (const [key, value] of ctx.extensionStatuses.entries()) {
-      if (!shouldRenderExtensionStatus(ctx, key, value)) {
-        continue;
-      }
-
-      const stripped = stripExtensionStatusSuffix(value);
-      if (visibleWidth(stripped) > 0) {
-        parts.push(stripped);
-      }
-    }
-
+    const parts = getVisibleExtensionStatusParts(ctx);
     if (!parts.length) {
       return { content: "", visible: false };
     }
     return { content: parts.join(` ${SEP_DOT} `), visible: true };
+  },
+  renderCompact(ctx) {
+    if (!ctx.extensionStatuses.size) {
+      return { content: "", visible: false };
+    }
+
+    const parts = getVisibleExtensionStatusParts(ctx);
+    if (!parts.length) {
+      return { content: "", visible: false };
+    }
+    return { content: parts.join(" "), visible: true };
   },
 };
 
@@ -538,8 +727,15 @@ const SEGMENTS: Record<StatusBarSegmentId, StatusBarSegment> = {
 
 export function renderStatusBarSegment(
   id: StatusBarSegmentId,
-  ctx: StatusBarContext
+  ctx: StatusBarContext,
+  mode: StatusBarRenderMode = "normal"
 ): RenderedSegment {
   const segment = SEGMENTS[id];
-  return segment ? segment.render(ctx) : { content: "", visible: false };
+  if (!segment) {
+    return { content: "", visible: false };
+  }
+  if (mode === "compact" && segment.renderCompact) {
+    return segment.renderCompact(ctx);
+  }
+  return segment.render(ctx);
 }

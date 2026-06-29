@@ -107,6 +107,7 @@ Then add the rest of your config fields:
   - `leftSegments`: optional ordered list of segment ids for the left side; when omitted, inherits the preset default
   - `rightSegments`: optional ordered list of segment ids for the right side; when omitted, inherits the preset default
   - `separator`: optional literal separator text inserted between visible segments; when omitted, inherits the preset separator; may be empty (`""`)
+  - overflow handling: status lines render normally first, then fall back to compact segment output when the terminal is too narrow. Compact fallback always separates same-side segments with ` | `, regardless of configured separator. Examples: model `✦ claude` becomes `claude`, context `12.5%/200k` becomes `12.5%`, and git `⎇ main *1` becomes `main *1`.
   - `colors`: optional semantic color overrides layered on top of the preset palette
     - supported color keys: `pi`, `model`, `path`, `gitDirty`, `gitClean`, `thinking`, `context`, `contextWarn`, `contextError`, `cost`, `tokens`, `separator`
     - values may be Pi theme color names or `#RRGGBB` hex

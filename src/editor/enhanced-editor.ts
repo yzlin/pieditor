@@ -229,7 +229,7 @@ export class EnhancedEditor extends CustomEditor {
         editorLines: renderAmpEditorChrome({
           width,
           editorLines: baseEditorLines,
-          labels: this.buildAmpLabels(),
+          labels: this.buildAmpLabels(width),
           borderColor: (value) => this.editorTheme.borderColor(value),
         }),
       };
@@ -285,13 +285,14 @@ export class EnhancedEditor extends CustomEditor {
     return typeof rows === "number" && Number.isFinite(rows) ? rows : 0;
   }
 
-  private buildAmpLabels() {
+  private buildAmpLabels(width: number) {
     return buildAmpStatusLayout({
       ctx: this.options.statusBar.getContext(),
       footerData: this.options.statusBar.getFooterData(),
       config: this.options.statusBar.config,
       sessionStartTime: this.sessionStartTime,
       theme: this.ui.theme,
+      width,
     });
   }
 

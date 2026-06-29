@@ -116,6 +116,90 @@ describe("status bar", () => {
       expect(layout.bottomContent).toBe("");
     });
 
+    it("keeps top-left and top-right content separate when width is provided", () => {
+      const { ctx, footerData, theme } = createStatusBarHarness();
+
+      const layout = buildAmpStatusLayout({
+        ctx,
+        footerData,
+        config: {
+          enabled: true,
+          preset: "default",
+          leftSegments: ["model"],
+          rightSegments: ["context_pct"],
+          separator: " | ",
+        },
+        sessionStartTime: Date.now(),
+        theme,
+        width: 80,
+      });
+
+      expect(layout.topLeftContent).toContain("test-model");
+      expect(layout.topLeftContent).not.toContain("12.5%/200k");
+      expect(layout.topRightContent).toContain("12.5%/200k");
+      expect(layout.bottomContent).toBe("");
+    });
+
+    it("keeps split bottom content unpadded so border dashes remain", () => {
+      const { ctx, footerData, theme } = createStatusBarHarness();
+
+      const layout = buildAmpStatusLayout({
+        ctx,
+        footerData,
+        config: {
+          enabled: true,
+          preset: "default",
+          leftSegments: ["path"],
+          rightSegments: ["git"],
+          separator: " | ",
+        },
+        sessionStartTime: Date.now(),
+        theme,
+        width: 80,
+      });
+
+      expect(layout.bottomContent).toContain("pieditor");
+      expect(layout.bottomContent).toContain("main");
+      expect(layout.bottomContent).not.toContain("          ");
+      expect(layout.bottomContent.length).toBeLessThan(78);
+    });
+
+    it("applies compact fallback independently to top and bottom rows", () => {
+      const { ctx, footerData, theme } = createStatusBarHarness();
+      ctx.model = {
+        id: "m",
+        name: "m",
+        reasoning: false,
+        contextWindow: 200_000,
+      } as NonNullable<ExtensionContext["model"]>;
+
+      const layout = buildAmpStatusLayout({
+        ctx,
+        footerData,
+        config: {
+          enabled: true,
+          preset: "default",
+          leftSegments: ["model", "context_pct", "path"],
+          rightSegments: ["git"],
+          segmentOptions: {
+            git: {
+              showStaged: false,
+              showUnstaged: false,
+              showUntracked: false,
+            },
+          },
+        },
+        sessionStartTime: Date.now(),
+        theme,
+        width: 20,
+      });
+
+      expect(layout.topLeftContent).toContain("m | 12.5%");
+      expect(layout.topLeftContent).not.toContain("200k");
+      expect(layout.bottomContent).toContain("pieditor");
+      expect(layout.bottomContent).toContain("main");
+    });
+
     it("moves configured path and git segments to bottom content", () => {
       const { ctx, footerData, theme } = createStatusBarHarness();
 
@@ -361,6 +445,29 @@ describe("status bar", () => {
       1
     );
     expect(line).not.toContain("main");
+  });
+
+  it("falls back to compact segment output when classic content overflows", () => {
+    const { ctx, footerData, theme } = createStatusBarHarness();
+
+    const line = renderStatusBarLine({
+      width: 24,
+      ctx,
+      footerData,
+      config: {
+        enabled: true,
+        preset: "default",
+        leftSegments: ["model", "context_pct"],
+        rightSegments: [],
+      },
+      sessionStartTime: Date.now(),
+      theme,
+    });
+
+    expect(line).toContain("test-model");
+    expect(line).toContain(" | ");
+    expect(line).toContain("12.5%");
+    expect(line).not.toContain("200k");
   });
 
   it("treats separator names as literal text when configured", () => {

@@ -141,7 +141,10 @@ export interface RenderedSegment {
   visible: boolean;
 }
 
+export type StatusBarRenderMode = "normal" | "compact";
+
 export interface StatusBarSegment {
   id: StatusBarSegmentId;
   render(ctx: StatusBarContext): RenderedSegment;
+  renderCompact?(ctx: StatusBarContext): RenderedSegment;
 }
