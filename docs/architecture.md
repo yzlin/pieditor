@@ -16,6 +16,7 @@ Current feature areas:
 - `!` / `!!` shell completions
 - top-border status bar
 - raw clipboard paste via `alt+v`
+- terminal bracketed double-paste expansion
 - raw active prompt editor buffer copy via `alt+c` and `/copy-editor`
 - optional double-escape command trigger
 - slash-command remapping at submit time
@@ -47,6 +48,7 @@ Editor behavior only.
 Owns:
 - submit interception and command remap
 - double-escape timing/decision logic
+- double-paste inspection/state and native marker confirmation through supported editor text APIs
 - autocomplete wrapping
 - status-bar insertion above the native editor border
 
@@ -106,8 +108,14 @@ Shell completion providers and shell detection.
   - jump fixed-editor root scrollback to bottom when a user message starts
 - `input`
   - jump fixed-editor root scrollback to bottom for busy interactive input before Pi queues the follow-up
+- complete terminal bracketed-paste input received by `EnhancedEditor.handleInput()`
+  - when `doublePaste.enabled` is true, let the first paste use native handling and arm only if observable before/after text proves Pi inserted a valid large-paste marker
+  - consume a matching repeat within `doublePaste.windowMs` only if no draft edit occurred after arming; cursor-only movement preserves eligibility, but an edit cancels it permanently even if Undo restores the same draft fingerprint
+  - expand all valid markers through `getExpandedText()` and supported Pi `setText()` only when the materialized output contains no paste-marker token that Pi could re-expand on submit; successful expansion moves the cursor to the end of the whole draft, even when the repeated marker was in the middle, and one Undo immediately afterward restores the previously collapsed marker draft
+  - short, incomplete, mismatched, expired, edited, unsafe marker-like output, or failed expansion paths retain native paste behavior; failure warning is session-scoped
+  - this shared path applies in normal and fixed rendering modes
 - `alt+v`
-  - paste raw clipboard text into the editor
+  - paste raw clipboard text into the editor; it bypasses and does not participate in double-paste handling
 - `alt+c`
   - copy the active prompt editor buffer as raw text through `composition.copyEditorBuffer()`
 - `/copy-editor`
@@ -128,6 +136,7 @@ Notes:
 - `editorChrome.style: "amp"` changes editor borders only, including fixed-editor mode; it does not add Amp non-editor UI, color config, or other Amp features
 - Amp chrome falls back to classic editor lines in very narrow terminals and renders an empty frame when status bar config is disabled
 - `commandRemap` merges by key
+- double-paste config merges by field; `enabled` defaults to `true` and `windowMs` defaults to `1000`
 - editor chrome config merges by field; `style` defaults to `classic`, accepts `classic` or `amp`, and invalid values are ignored so lower layers/defaults apply
 - file-picker config merges by field; `skipPatterns` is replaced by the last layer that sets it
 - fixed-editor config merges by field; shortcut arrays are replaced by the last layer that sets them

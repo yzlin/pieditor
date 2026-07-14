@@ -101,6 +101,10 @@ describe("pieditor config", () => {
       editorChrome: {
         style: "amp",
       },
+      doublePaste: {
+        enabled: true,
+        windowMs: 1000,
+      },
       filePicker: {
         ...DEFAULT_FILE_PICKER_CONFIG,
         respectGitignore: false,
@@ -137,6 +141,77 @@ describe("pieditor config", () => {
     });
   });
 
+  it("defaults double paste config", () => {
+    expect(resolveRuntimeConfig(null, null).doublePaste).toEqual({
+      enabled: true,
+      windowMs: 1000,
+    });
+  });
+
+  it("merges double paste fields independently with project precedence", () => {
+    const config = resolveRuntimeConfig(
+      { doublePaste: { enabled: false, windowMs: 750 } },
+      { doublePaste: { enabled: true } }
+    );
+
+    expect(config.doublePaste).toEqual({ enabled: true, windowMs: 750 });
+  });
+
+  it("rejects non-positive, non-integer, and non-finite double paste windows", () => {
+    for (const windowMs of [0, -1, 1.5, Number.POSITIVE_INFINITY, Number.NaN]) {
+      expect(
+        resolveRuntimeConfig({ doublePaste: { windowMs } }, null).doublePaste
+          .windowMs
+      ).toBe(1000);
+    }
+  });
+
+  it("ignores invalid double paste fields in each config layer", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "pieditor-"));
+    const homeDir = join(tempRoot, "home");
+    const cwd = join(tempRoot, "project");
+    const globalConfigPath = join(homeDir, ".pi", "agent", "pieditor.json");
+    const projectConfigPath = join(cwd, ".pi", "pieditor.json");
+
+    mkdirSync(dirname(globalConfigPath), { recursive: true });
+    mkdirSync(dirname(projectConfigPath), { recursive: true });
+    writeFileSync(
+      globalConfigPath,
+      JSON.stringify({ doublePaste: { enabled: false, windowMs: 625 } })
+    );
+    writeFileSync(
+      projectConfigPath,
+      JSON.stringify({ doublePaste: { enabled: "yes", windowMs: 1.5 } })
+    );
+
+    try {
+      expect(loadConfig({ homeDir, cwd }).doublePaste).toEqual({
+        enabled: false,
+        windowMs: 625,
+      });
+
+      writeFileSync(
+        globalConfigPath,
+        JSON.stringify({
+          doublePaste: { enabled: 1, windowMs: 0 },
+        })
+      );
+      writeFileSync(
+        projectConfigPath,
+        JSON.stringify({
+          doublePaste: { enabled: null, windowMs: Number.POSITIVE_INFINITY },
+        })
+      );
+
+      expect(loadConfig({ homeDir, cwd }).doublePaste).toEqual({
+        enabled: true,
+        windowMs: 1000,
+      });
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("uses defaults when file picker config is omitted", () => {
     const config = resolveRuntimeConfig(
       {
@@ -156,6 +231,10 @@ describe("pieditor config", () => {
       },
       editorChrome: {
         style: "classic",
+      },
+      doublePaste: {
+        enabled: true,
+        windowMs: 1000,
       },
       filePicker: DEFAULT_FILE_PICKER_CONFIG,
       statusBar: {

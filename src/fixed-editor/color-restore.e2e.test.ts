@@ -285,6 +285,7 @@ function createEditor(tui: TUI): EnhancedEditor {
       getDoubleEscapeCommand: () => null,
       canTriggerDoubleEscapeCommand: () => false,
       commandRemap: {},
+      doublePaste: { enabled: true, windowMs: 1000 },
       editorChrome: { style: "amp" },
       statusBar: {
         config: { enabled: false, preset: "default" },

@@ -65,10 +65,21 @@ export interface EditorChromeRuntimeConfig {
   style: EditorChromeStyle;
 }
 
+export interface DoublePasteConfig {
+  enabled?: boolean;
+  windowMs?: number;
+}
+
+export interface DoublePasteRuntimeConfig {
+  enabled: boolean;
+  windowMs: number;
+}
+
 export interface EditorEnhancementsConfig {
   doubleEscapeCommand?: string | null;
   commandRemap?: Record<string, string>;
   editorChrome?: EditorChromeConfig;
+  doublePaste?: DoublePasteConfig;
   filePicker?: PickerConfig;
   statusBar?: StatusBarConfig;
   fixedEditor?: FixedEditorConfig;
@@ -78,6 +89,7 @@ export interface EditorEnhancementsRuntimeConfig {
   doubleEscapeCommand: string | null;
   commandRemap: Record<string, string>;
   editorChrome: EditorChromeRuntimeConfig;
+  doublePaste: DoublePasteRuntimeConfig;
   filePicker: PickerRuntimeConfig;
   statusBar: StatusBarRuntimeConfig;
   fixedEditor: FixedEditorRuntimeConfig;
@@ -87,6 +99,7 @@ interface EditorEnhancementsConfigLayer {
   doubleEscapeCommand?: string | null;
   commandRemap?: Record<string, string>;
   editorChrome?: Partial<EditorChromeRuntimeConfig>;
+  doublePaste?: Partial<DoublePasteRuntimeConfig>;
   filePicker?: Partial<PickerRuntimeConfig>;
   statusBar?: Partial<StatusBarRuntimeConfig>;
   fixedEditor?: Partial<FixedEditorRuntimeConfig>;
@@ -103,6 +116,10 @@ const DEFAULT_CONFIG: EditorEnhancementsRuntimeConfig = {
   commandRemap: {},
   editorChrome: {
     style: "classic",
+  },
+  doublePaste: {
+    enabled: true,
+    windowMs: 1000,
   },
   filePicker: mergeFilePickerConfigs(),
   statusBar: {
@@ -171,6 +188,44 @@ function mergeEditorChromeConfigs(
   }
 
   return { style };
+}
+
+function normalizeDoublePasteConfig(
+  value: unknown
+): Partial<DoublePasteRuntimeConfig> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const raw = value as Record<string, unknown>;
+  const next: Partial<DoublePasteRuntimeConfig> = {};
+
+  if (typeof raw.enabled === "boolean") {
+    next.enabled = raw.enabled;
+  }
+
+  if (
+    typeof raw.windowMs === "number" &&
+    Number.isFinite(raw.windowMs) &&
+    Number.isInteger(raw.windowMs) &&
+    raw.windowMs > 0
+  ) {
+    next.windowMs = raw.windowMs;
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function mergeDoublePasteConfigs(
+  ...configs: (Partial<DoublePasteRuntimeConfig> | undefined)[]
+): DoublePasteRuntimeConfig {
+  let merged = { ...DEFAULT_CONFIG.doublePaste };
+
+  for (const config of configs) {
+    merged = { ...merged, ...normalizeDoublePasteConfig(config) };
+  }
+
+  return merged;
 }
 
 function normalizeStatusBarPreset(value: unknown): StatusBarPreset | null {
@@ -413,6 +468,10 @@ function loadConfigFile(
       next.editorChrome = normalizeEditorChromeConfig(parsed.editorChrome);
     }
 
+    if (Object.hasOwn(parsed, "doublePaste")) {
+      next.doublePaste = normalizeDoublePasteConfig(parsed.doublePaste);
+    }
+
     if (Object.hasOwn(parsed, "filePicker")) {
       next.filePicker = normalizeFilePickerConfig(parsed.filePicker);
     }
@@ -451,6 +510,10 @@ export function resolveRuntimeConfig(
       DEFAULT_CONFIG.editorChrome,
       globalConfig?.editorChrome,
       projectConfig?.editorChrome
+    ),
+    doublePaste: mergeDoublePasteConfigs(
+      globalConfig?.doublePaste,
+      projectConfig?.doublePaste
     ),
     filePicker: mergeFilePickerConfigs(
       DEFAULT_CONFIG.filePicker,

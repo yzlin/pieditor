@@ -13,6 +13,7 @@ import type {
 import { getText } from "@mariozechner/clipboard";
 
 import type {
+  DoublePasteRuntimeConfig,
   EditorChromeRuntimeConfig,
   StatusBarRuntimeConfig,
 } from "../config/index.js";
@@ -34,6 +35,13 @@ import {
   matchesInterrupt,
   shouldHandleConfiguredDoubleEscape,
 } from "./double-escape.js";
+import {
+  BRACKETED_PASTE_END,
+  BRACKETED_PASTE_START,
+  confirmNativePaste,
+  type DoublePasteState,
+  inspectDoublePaste,
+} from "./double-paste.js";
 
 export interface FixedEditorParts {
   statusLines?: string[];
@@ -53,6 +61,7 @@ interface EnhancedEditorOptions {
   getDoubleEscapeCommand: () => string | null;
   canTriggerDoubleEscapeCommand: () => boolean;
   commandRemap: Record<string, string>;
+  doublePaste: DoublePasteRuntimeConfig;
   editorChrome: EditorChromeRuntimeConfig;
   statusBar: {
     config: StatusBarRuntimeConfig;
@@ -61,10 +70,105 @@ interface EnhancedEditorOptions {
   };
 }
 
+const VALID_PASTE_MARKER = /^\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]$/;
+const PASTE_MARKER_TOKEN = /\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]/;
+
+function insertedText(before: string, after: string): string | null {
+  let prefixLength = 0;
+  while (
+    prefixLength < before.length &&
+    prefixLength < after.length &&
+    before[prefixLength] === after[prefixLength]
+  ) {
+    prefixLength += 1;
+  }
+
+  let suffixLength = 0;
+  while (
+    suffixLength < before.length - prefixLength &&
+    suffixLength < after.length - prefixLength &&
+    before[before.length - 1 - suffixLength] ===
+      after[after.length - 1 - suffixLength]
+  ) {
+    suffixLength += 1;
+  }
+
+  if (before.length !== prefixLength + suffixLength) {
+    return null;
+  }
+  return after.slice(prefixLength, after.length - suffixLength);
+}
+
+function insertedTextAtOffset(
+  before: string,
+  after: string,
+  insertionOffset: number
+): string | null {
+  const insertionLength = after.length - before.length;
+  if (
+    insertionLength < 0 ||
+    insertionOffset < 0 ||
+    insertionOffset > before.length ||
+    after.slice(0, insertionOffset) !== before.slice(0, insertionOffset) ||
+    after.slice(insertionOffset + insertionLength) !==
+      before.slice(insertionOffset)
+  ) {
+    return null;
+  }
+  return after.slice(insertionOffset, insertionOffset + insertionLength);
+}
+
+function cursorOffset(
+  text: string,
+  cursor: { line: number; col: number }
+): number | null {
+  const lines = text.split("\n");
+  const line = lines[cursor.line];
+  if (line === undefined || cursor.col < 0 || cursor.col > line.length) {
+    return null;
+  }
+  const precedingLength = lines
+    .slice(0, cursor.line)
+    .reduce((sum, value) => sum + value.length + 1, 0);
+  return precedingLength + cursor.col;
+}
+
+function didCreateNativePasteMarker(options: {
+  beforeText: string;
+  beforeExpandedText: string;
+  afterText: string;
+  afterExpandedText: string;
+  insertionOffset: number;
+}): boolean {
+  const marker = insertedTextAtOffset(
+    options.beforeText,
+    options.afterText,
+    options.insertionOffset
+  );
+  const expandedInsertion = insertedText(
+    options.beforeExpandedText,
+    options.afterExpandedText
+  );
+  return Boolean(
+    marker &&
+      VALID_PASTE_MARKER.test(marker) &&
+      expandedInsertion !== null &&
+      expandedInsertion !== marker
+  );
+}
+
+const EMPTY_DOUBLE_PASTE_STATE: DoublePasteState = {
+  candidate: null,
+  pending: null,
+};
+
 export class EnhancedEditor extends CustomEditor {
   private readonly tuiInstance: TUI;
   private readonly sessionStartTime = Date.now();
   private openingPicker = false;
+  private doublePasteState = EMPTY_DOUBLE_PASTE_STATE;
+  private bracketedPasteBuffer: string | null = null;
+  private warnedDoublePasteFailure = false;
   private readonly wrappedAutocompleteProviders = new WeakSet<AutocompleteProvider>();
   private lastEscapeTime = 0;
   private submitHandler?: (text: string) => void;
@@ -126,7 +230,9 @@ export class EnhancedEditor extends CustomEditor {
     if (!refs) {
       return;
     }
+    const beforeText = this.getText();
     this.insertTextAtCursor(`${refs} `);
+    this.cancelDoublePasteAfterDraftChange(beforeText);
     this.tuiInstance.requestRender();
   }
 
@@ -146,12 +252,21 @@ export class EnhancedEditor extends CustomEditor {
     const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
     // Insert using editor primitive (NOT bracketed paste), so it won't turn into [paste #..]
+    const beforeText = this.getText();
     this.insertTextAtCursor(normalized);
+    this.cancelDoublePasteAfterDraftChange(beforeText);
     this.tuiInstance.requestRender();
   }
 
   handleInput(data: string): void {
     if (this.openingPicker) {
+      return;
+    }
+
+    if (
+      this.options.doublePaste.enabled &&
+      this.handleBracketedPasteInput(data)
+    ) {
       return;
     }
 
@@ -188,7 +303,154 @@ export class EnhancedEditor extends CustomEditor {
       return;
     }
 
+    this.handleNativeInput(data);
+  }
+
+  private handleNativeInput(data: string): void {
+    const beforeText = this.getText();
     super.handleInput(data);
+    this.cancelDoublePasteAfterDraftChange(beforeText);
+  }
+
+  private cancelDoublePasteAfterDraftChange(beforeText: string): void {
+    if (this.doublePasteState.candidate && this.getText() !== beforeText) {
+      this.doublePasteState = EMPTY_DOUBLE_PASTE_STATE;
+    }
+  }
+
+  private handleBracketedPasteInput(data: string): boolean {
+    if (
+      this.bracketedPasteBuffer === null &&
+      !data.startsWith(BRACKETED_PASTE_START)
+    ) {
+      return false;
+    }
+
+    const buffered = (this.bracketedPasteBuffer ?? "") + data;
+    const endIndex = buffered.indexOf(
+      BRACKETED_PASTE_END,
+      BRACKETED_PASTE_START.length
+    );
+    if (endIndex === -1) {
+      this.bracketedPasteBuffer = buffered;
+      return true;
+    }
+
+    this.bracketedPasteBuffer = null;
+    const envelopeEnd = endIndex + BRACKETED_PASTE_END.length;
+    const envelope = buffered.slice(0, envelopeEnd);
+    const remaining = buffered.slice(envelopeEnd);
+    if (!this.handleDoublePaste(envelope)) {
+      this.handleNativeInput(envelope);
+    }
+    if (remaining) {
+      this.handleInput(remaining);
+    }
+    return true;
+  }
+
+  private handleDoublePaste(data: string): boolean {
+    const draftText = this.getText();
+    const now = Date.now();
+    const inspection = inspectDoublePaste(this.doublePasteState, {
+      input: data,
+      draftText,
+      now,
+      windowMs: this.options.doublePaste.windowMs,
+    });
+    if (inspection.intent === "not-paste") {
+      return false;
+    }
+
+    this.lastEscapeTime = 0;
+
+    if (inspection.intent === "allow-native") {
+      this.allowAndConfirmNativePaste(data, inspection.state);
+      return true;
+    }
+
+    this.doublePasteState = inspection.state;
+    try {
+      const expandedText = this.getExpandedText();
+      if (PASTE_MARKER_TOKEN.test(expandedText)) {
+        this.retryNativePaste(data, now);
+        return true;
+      }
+      this.setText(expandedText);
+    } catch {
+      this.retryNativePaste(data, now);
+      return true;
+    }
+
+    try {
+      this.tuiInstance.requestRender();
+    } catch {
+      // Text is already expanded, so native fallback would duplicate the paste.
+      this.warnDoublePasteFailure();
+    }
+    return true;
+  }
+
+  private retryNativePaste(data: string, now: number): void {
+    this.warnDoublePasteFailure();
+    const retry = inspectDoublePaste(EMPTY_DOUBLE_PASTE_STATE, {
+      input: data,
+      draftText: this.getText(),
+      now,
+      windowMs: this.options.doublePaste.windowMs,
+    });
+    this.allowAndConfirmNativePaste(data, retry.state);
+  }
+
+  private allowAndConfirmNativePaste(
+    data: string,
+    pendingState: DoublePasteState
+  ): void {
+    let beforeExpandedText: string;
+    try {
+      beforeExpandedText = this.getExpandedText();
+    } catch {
+      this.doublePasteState = EMPTY_DOUBLE_PASTE_STATE;
+      super.handleInput(data);
+      this.warnDoublePasteFailure();
+      return;
+    }
+    const beforeText = this.getText();
+    const insertionOffset = cursorOffset(beforeText, this.getCursor());
+
+    super.handleInput(data);
+
+    const afterText = this.getText();
+    let nativeCreatedValidMarker = false;
+    try {
+      nativeCreatedValidMarker =
+        insertionOffset !== null &&
+        didCreateNativePasteMarker({
+          beforeText,
+          beforeExpandedText,
+          afterText,
+          afterExpandedText: this.getExpandedText(),
+          insertionOffset,
+        });
+    } catch {
+      this.warnDoublePasteFailure();
+    }
+    this.doublePasteState = confirmNativePaste(pendingState, {
+      nativeCreatedValidMarker,
+      draftText: afterText,
+    });
+  }
+
+  private warnDoublePasteFailure(): void {
+    if (this.warnedDoublePasteFailure) {
+      return;
+    }
+    this.warnedDoublePasteFailure = true;
+    try {
+      this.ui.notify("Double-paste handling failed", "warning");
+    } catch {
+      // Warning delivery must not prevent native paste fallback.
+    }
   }
 
   private handleConfiguredDoubleEscape(command: string | null): void {

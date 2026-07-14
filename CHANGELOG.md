@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Add configurable double-paste expansion for large terminal bracketed pastes collapsed into Pi paste markers.
 - Add `alt+c` and `/copy-editor` to copy the active prompt editor buffer as raw text.
 - Render this extension's `ui.select()` and `ui.confirm()` prompts above the fixed editor while fixed editor mode is active.
 - Lift Pi built-in selector components, such as `/model`, above the fixed editor while focused.

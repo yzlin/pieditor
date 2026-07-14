@@ -19,6 +19,7 @@ This extension currently provides:
 - `@`-triggered file picking for inserting `@path` refs at the cursor
 - shell completions in `!` / `!!` mode
 - `alt+v` raw clipboard paste that bypasses Pi's large-paste markers
+- double-paste expansion for terminal bracketed pastes that Pi collapses into large-paste markers
 - `alt+c` / `/copy-editor` raw active prompt editor buffer copy
 - optional remapping of the editor's empty-editor double-escape gesture to an extension command such as `/anycopy`
 - configurable command remapping (e.g. make `/tree` execute `/anycopy` instead)
@@ -37,6 +38,7 @@ Notable interactions:
 - File previews in the preview pane can use either the picker-local syntect native addon (`previewHighlightMode: "native"`) or Pi's built-in syntax highlighting (`previewHighlightMode: "builtin"`)
 - The file picker's search includes files inside symlinked directories only when their real path stays under the picker root, including when `respectGitignore` is enabled for a git repo
 - The file picker's search box uses Pi's shared `Input` editing behavior for word/home/end cursor movement and related text editing shortcuts
+- Paste the same large terminal bracketed paste twice within 1000 ms to replace the collapsed draft with its expanded text. The first paste follows Pi's native marker behavior; the second works only while draft text is unchanged. Cursor-only movement, including leaving the cursor at the draft end, is allowed. Expansion replaces all currently valid Pi paste markers in the draft, not only the repeated one; this all-marker behavior avoids leaving hidden content but can expand unrelated earlier markers. Successful expansion through Pi's supported `setText()` moves the cursor to the end of the whole draft, even when the repeated marker was in the middle. One Undo immediately afterward restores the previously collapsed marker draft. `alt+v` remains a separate raw clipboard path and does not participate.
 - Press `alt+v` to paste clipboard text raw into the editor
 - Press `alt+c` or run `/copy-editor` to copy the active prompt editor buffer as raw text; it copies only current editor text, not transcript output, selection text, footer/status text, or overlay/replacement UI contents. If the editor is empty it reports `Editor buffer empty` and does not modify the clipboard.
 - If the standalone `extensions/caveman` extension is loaded, built-in presets show the active `🪨 caveman` indicator through the dedicated `caveman` segment; custom segment lists must include `caveman` or `extension_statuses` to show it.
@@ -82,6 +84,12 @@ Then add the rest of your config fields:
   - keys and values are normalized (leading `/` stripped, whitespace trimmed)
   - works for all command types: built-in (`/tree`, `/model`), extension, skill, and template commands
   - arguments and subcommand syntax (everything after the command name) are preserved
+- `doublePaste`: nested terminal bracketed-paste config
+  - `enabled`: default `true`; set `false` to retain ordinary Pi native paste behavior with no double-paste interception
+  - `windowMs`: default `1000`; positive integer window in milliseconds between the native collapsed paste and its matching repeat
+  - only a complete bracketed paste that Pi actually turns into a valid `[paste #…]` marker can arm the feature; short pastes and typed marker-like text do not
+  - editing draft text permanently cancels eligibility, even if Undo restores the draft; cursor-only movement does not
+  - successful expansion uses Pi's supported full expansion and expands all valid markers in the draft; if expanded content still looks like a paste marker, the repeat falls back to native paste to avoid re-expansion on submit
 - `fixedEditor`: nested fixed editor config; disabled by default and only active after explicit opt-in
   - `enabled`: default `false`; opt in to fixed editor mode
   - `mouseScroll`: default `true`; allow mouse wheel scrolling in fixed editor mode
@@ -150,6 +158,10 @@ Then add the rest of your config fields:
     "tree": "anycopy",
     "resume": "switch-session"
   },
+  "doublePaste": {
+    "enabled": true,
+    "windowMs": 1000
+  },
   "editorChrome": {
     "style": "classic"
   },
@@ -203,7 +215,7 @@ Runtime merge order for pieditor config is:
 2. global `~/.pi/agent/pieditor.json`
 3. project `.pi/pieditor.json`
 
-`commandRemap` maps are merged by key. `editorChrome`, `fixedEditor`, `filePicker`, and `statusBar` values are merged by field, with later layers winning; invalid `editorChrome.style` values are ignored so lower layers/defaults still apply. `fixedEditor` shortcut arrays and `filePicker.skipPatterns` come from the last layer that sets them. `statusBar.leftSegments` and `statusBar.rightSegments` are each replaced by the last layer that sets them, `separator` takes the last configured literal string, `colors` merge by semantic key, and `segmentOptions` merge per nested field.
+`commandRemap` maps are merged by key. `doublePaste`, `editorChrome`, `fixedEditor`, `filePicker`, and `statusBar` values are merged by field, with later layers winning; invalid `editorChrome.style` values are ignored so lower layers/defaults still apply. `fixedEditor` shortcut arrays and `filePicker.skipPatterns` come from the last layer that sets them. `statusBar.leftSegments` and `statusBar.rightSegments` are each replaced by the last layer that sets them, `separator` takes the last configured literal string, `colors` merge by semantic key, and `segmentOptions` merge per nested field.
 
 Config layout:
 

@@ -337,6 +337,7 @@ export function createPieditorComposition(
               );
             },
             commandRemap: config.commandRemap,
+            doublePaste: config.doublePaste,
             editorChrome: config.editorChrome,
             statusBar: {
               config: config.statusBar,

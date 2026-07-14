@@ -7,6 +7,10 @@
   "editorChrome": {
     "style": "classic"
   },
+  "doublePaste": {
+    "enabled": true,
+    "windowMs": 1000
+  },
   "filePicker": {
     "respectGitignore": true,
     "skipHidden": true,

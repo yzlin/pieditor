@@ -42,11 +42,15 @@ function createEditor(
     canTriggerDoubleEscapeCommand?: () => boolean;
     interruptMatches?: boolean;
     borderColor?: (value: string) => string;
+    doublePaste?: { enabled: boolean; windowMs: number };
+    notifications?: Array<{ message: string; level: string | undefined }>;
+    onNotify?: (message: string, level?: string) => void;
+    onRequestRender?: () => void;
   }
 ) {
   const tui = {
     requestRender() {
-      /* noop */
+      options?.onRequestRender?.();
     },
     terminal: {
       rows: 24,
@@ -60,15 +64,17 @@ function createEditor(
 
   const keybindings = {
     matches(_data: string, key: string) {
-      return key === "app.interrupt"
-        ? Boolean(options?.interruptMatches)
-        : false;
+      if (key === "app.interrupt") {
+        return Boolean(options?.interruptMatches);
+      }
+      return key === "tui.editor.undo" && _data === "\x1f";
     },
   } as unknown as ConstructorParameters<typeof EnhancedEditor>[2];
 
   const ui = {
-    notify() {
-      /* noop */
+    notify(message: string, level?: string) {
+      options?.notifications?.push({ message, level });
+      options?.onNotify?.(message, level);
     },
     theme: {
       fg(_color: string, text: string) {
@@ -84,6 +90,7 @@ function createEditor(
     canTriggerDoubleEscapeCommand:
       options?.canTriggerDoubleEscapeCommand ?? (() => false),
     commandRemap,
+    doublePaste: options?.doublePaste ?? { enabled: true, windowMs: 1000 },
     editorChrome: {
       style: options?.editorChromeStyle ?? "classic",
     },
@@ -143,6 +150,288 @@ function createStatusBarFooterData(
     },
   };
 }
+
+const PASTE_START = "\x1b[200~";
+const PASTE_END = "\x1b[201~";
+const pasteInput = (text: string) => `${PASTE_START}${text}${PASTE_END}`;
+const longPaste = (label: string) =>
+  Array.from({ length: 12 }, (_, index) => `${label}-${index}`).join("\n");
+
+describe("EnhancedEditor double paste", () => {
+  it("lets the first large paste collapse natively, then expands without duplication or success notice", () => {
+    const notifications: Array<{ message: string; level: string | undefined }> = [];
+    let renders = 0;
+    const editor = createEditor({}, {
+      notifications,
+      onRequestRender: () => {
+        renders += 1;
+      },
+    });
+    const pasted = longPaste("same");
+
+    editor.handleInput(pasteInput(pasted));
+    expect(editor.getText()).toMatch(/^\[paste #1 \+12 lines\]$/);
+
+    editor.handleInput(pasteInput(pasted));
+
+    expect(editor.getText()).toBe(pasted);
+    expect(editor.getExpandedText()).toBe(pasted);
+    expect(renders).toBe(1);
+    expect(notifications).toEqual([
+      { message: expect.stringContaining("pieditor loaded"), level: "info" },
+    ]);
+  });
+
+  it("expands a repeated large paste when both envelopes arrive in chunks", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("fragmented");
+
+    editor.handleInput(PASTE_START);
+    editor.handleInput(pasted);
+    editor.handleInput(PASTE_END);
+    expect(editor.getText()).toMatch(/^\[paste #1 \+12 lines\]$/);
+
+    editor.handleInput(PASTE_START);
+    editor.handleInput(pasted);
+    editor.handleInput(PASTE_END);
+
+    expect(editor.getText()).toBe(pasted);
+    expect(editor.getExpandedText()).toBe(pasted);
+  });
+
+  it("expands a repeated large paste immediately before an existing bracket", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("before-bracket");
+    editor.setText("hello[");
+    editor.handleInput("\x1b[D");
+
+    editor.handleInput(pasteInput(pasted));
+    expect(editor.getText()).toMatch(/^hello\[paste #1 \+12 lines\]\[$/);
+
+    editor.handleInput(pasteInput(pasted));
+
+    expect(editor.getText()).toBe(`hello${pasted}[`);
+    expect(editor.getExpandedText()).toBe(`hello${pasted}[`);
+  });
+
+  it("restores the collapsed marker draft with one native undo after expansion", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("undo");
+
+    editor.handleInput(pasteInput(pasted));
+    const collapsedDraft = editor.getText();
+    editor.handleInput(pasteInput(pasted));
+    expect(editor.getText()).toBe(pasted);
+
+    // Pi TUI's default `tui.editor.undo` binding is ctrl+-, encoded as 0x1f.
+    editor.handleInput("\x1f");
+
+    expect(editor.getText()).toBe(collapsedDraft);
+  });
+
+  it("expands every valid marker already in the unchanged draft", () => {
+    const editor = createEditor({});
+    const first = longPaste("first");
+    const second = longPaste("second");
+
+    editor.handleInput(pasteInput(first));
+    editor.handleInput(pasteInput(second));
+    expect(editor.getText()).toContain("[paste #1 +12 lines]");
+    expect(editor.getText()).toContain("[paste #2 +12 lines]");
+
+    editor.handleInput(pasteInput(second));
+
+    expect(editor.getText()).toBe(`${first}${second}`);
+  });
+
+  it("rolls mismatches so A then B then B expands", () => {
+    const editor = createEditor({});
+    const first = longPaste("a");
+    const second = longPaste("b");
+
+    editor.handleInput(pasteInput(first));
+    editor.handleInput(pasteInput(second));
+    editor.handleInput(pasteInput(second));
+
+    expect(editor.getText()).toBe(`${first}${second}`);
+  });
+
+  it("does not expand after timeout or a draft edit", () => {
+    const originalNow = Date.now;
+    let now = 100;
+    Date.now = () => now;
+    try {
+      const expiredEditor = createEditor({}, {
+        doublePaste: { enabled: true, windowMs: 50 },
+      });
+      const expired = longPaste("expired");
+      expiredEditor.handleInput(pasteInput(expired));
+      now = 151;
+      expiredEditor.handleInput(pasteInput(expired));
+      expect(expiredEditor.getText()).toMatch(
+        /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
+      );
+
+      const editedEditor = createEditor({});
+      const edited = longPaste("edited");
+      editedEditor.handleInput(pasteInput(edited));
+      editedEditor.handleInput("x");
+      editedEditor.handleInput(pasteInput(edited));
+      expect(editedEditor.getText()).toContain("x[paste #2 +12 lines]");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  it("permanently cancels a candidate after an edit even when undo restores the draft", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("edit-undo");
+
+    editor.handleInput(pasteInput(pasted));
+    editor.handleInput("x");
+    editor.handleInput("\x1f");
+    editor.handleInput(pasteInput(pasted));
+
+    expect(editor.getText()).toMatch(
+      /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
+    );
+  });
+
+  it("keeps a candidate eligible across cursor-only movement", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("cursor");
+
+    editor.handleInput(pasteInput(pasted));
+    editor.handleInput("\x1b[D");
+    editor.handleInput(pasteInput(pasted));
+
+    expect(editor.getText()).toBe(pasted);
+  });
+
+  it("fails open when expanded content still contains a paste marker token", () => {
+    const notifications: Array<{ message: string; level: string | undefined }> = [];
+    const submitted: string[] = [];
+    const pasted = `[paste #1 +12 lines]\n${longPaste("marker-content")}`;
+    const editor = createEditor({}, { notifications });
+    editor.onSubmit = (text) => {
+      submitted.push(text);
+    };
+
+    editor.handleInput(pasteInput(pasted));
+    editor.handleInput(pasteInput(pasted));
+    editorInternals(editor).submitValue();
+
+    expect(submitted).toEqual([`${pasted}${pasted}`]);
+    expect(
+      notifications.filter(({ level }) => level === "warning")
+    ).toHaveLength(1);
+  });
+
+  it("does not arm when literal marker text matches an existing native marker", () => {
+    const editor = createEditor({});
+    const pasted = longPaste("existing");
+    const literalMarker = "[paste #1 +12 lines]";
+
+    editor.handleInput(pasteInput(pasted));
+    editor.handleInput(pasteInput(literalMarker));
+    editor.handleInput(pasteInput(literalMarker));
+
+    expect(editor.getText()).toBe(literalMarker.repeat(3));
+  });
+
+  it("does no interception when disabled and never arms for short or marker-like text", () => {
+    const disabled = createEditor({}, {
+      doublePaste: { enabled: false, windowMs: 1000 },
+    });
+    const pasted = longPaste("disabled");
+    disabled.handleInput(pasteInput(pasted));
+    disabled.handleInput(pasteInput(pasted));
+    expect(disabled.getText()).toMatch(
+      /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
+    );
+
+    const short = createEditor({});
+    short.handleInput(pasteInput("[paste #999 +12 lines]"));
+    short.handleInput(pasteInput("[paste #999 +12 lines]"));
+    expect(short.getText()).toBe(
+      "[paste #999 +12 lines][paste #999 +12 lines]"
+    );
+  });
+
+  it("resets an armed double escape when a bracketed paste is recognized", () => {
+    const originalNow = Date.now;
+    let now = 1000;
+    Date.now = () => now;
+    try {
+      const submitted: string[] = [];
+      const editor = createEditor({}, {
+        doubleEscapeCommand: "anycopy",
+        canTriggerDoubleEscapeCommand: () => true,
+        interruptMatches: true,
+      });
+      editor.onSubmit = (text) => {
+        submitted.push(text);
+      };
+
+      editor.handleInput("\x1b");
+      now = 1100;
+      editor.handleInput(pasteInput(longPaste("escape-reset")));
+      now = 1200;
+      editor.handleInput("\x1b");
+
+      expect(submitted).toEqual([]);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  it("fails open when warning notification throws during expansion failure", () => {
+    const editor = createEditor({}, {
+      onNotify(_message, level) {
+        if (level === "warning") {
+          throw new Error("notify failed");
+        }
+      },
+    });
+    const pasted = longPaste("throwing-notify");
+    const originalGetExpandedText = editor.getExpandedText.bind(editor);
+
+    editor.handleInput(pasteInput(pasted));
+    editor.getExpandedText = () => {
+      throw new Error("expansion failed");
+    };
+    expect(() => editor.handleInput(pasteInput(pasted))).not.toThrow();
+    editor.getExpandedText = originalGetExpandedText;
+
+    expect(editor.getText()).toContain("[paste #2 +12 lines]");
+  });
+
+  it("fails open and warns only once when expansion reads fail", () => {
+    const notifications: Array<{ message: string; level: string | undefined }> = [];
+    const editor = createEditor({}, { notifications });
+    const first = longPaste("first-failure");
+    const second = longPaste("second-failure");
+    const originalGetExpandedText = editor.getExpandedText.bind(editor);
+
+    editor.handleInput(pasteInput(first));
+    editor.getExpandedText = () => {
+      throw new Error("boom");
+    };
+    editor.handleInput(pasteInput(first));
+    editor.getExpandedText = originalGetExpandedText;
+    expect(editor.getText()).toContain("[paste #2 +12 lines]");
+
+    editor.handleInput(pasteInput(second));
+    editor.getExpandedText = () => {
+      throw new Error("again");
+    };
+    editor.handleInput(pasteInput(second));
+
+    expect(
+      notifications.filter(({ level }) => level === "warning")
+    ).toHaveLength(1);
+  });
+});
 
 describe("EnhancedEditor command remap", () => {
   it("remaps slash commands on direct onSubmit invocation", () => {
