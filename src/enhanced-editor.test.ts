@@ -40,8 +40,10 @@ function createEditor(
     doubleEscapeCommand?: string | null;
     getDoubleEscapeCommand?: () => string | null;
     canTriggerDoubleEscapeCommand?: () => boolean;
-    interruptMatches?: boolean;
+    interruptMatches?: boolean | ((data: string) => boolean);
+    submitMatches?: (data: string) => boolean;
     borderColor?: (value: string) => string;
+    onContinue?: () => void;
     doublePaste?: { enabled: boolean; windowMs: number };
     notifications?: Array<{ message: string; level: string | undefined }>;
     onNotify?: (message: string, level?: string) => void;
@@ -65,7 +67,12 @@ function createEditor(
   const keybindings = {
     matches(_data: string, key: string) {
       if (key === "app.interrupt") {
-        return Boolean(options?.interruptMatches);
+        return typeof options?.interruptMatches === "function"
+          ? options.interruptMatches(_data)
+          : Boolean(options?.interruptMatches);
+      }
+      if (key === "tui.input.submit") {
+        return options?.submitMatches?.(_data) ?? false;
       }
       return key === "tui.editor.undo" && _data === "\x1f";
     },
@@ -77,13 +84,14 @@ function createEditor(
       options?.onNotify?.(message, level);
     },
     theme: {
-      fg(_color: string, text: string) {
-        return text;
+      fg(color: string, text: string) {
+        return color === "warning" ? `<warning>${text}</warning>` : text;
       },
     },
   } as unknown as ConstructorParameters<typeof EnhancedEditor>[3];
 
   return new EnhancedEditor(tui, theme, keybindings, ui, {
+    onContinue: options?.onContinue ?? (() => undefined),
     getDoubleEscapeCommand:
       options?.getDoubleEscapeCommand ??
       (() => options?.doubleEscapeCommand ?? null),
@@ -156,6 +164,118 @@ const PASTE_END = "\x1b[201~";
 const pasteInput = (text: string) => `${PASTE_START}${text}${PASTE_END}`;
 const longPaste = (label: string) =>
   Array.from({ length: 12 }, (_, index) => `${label}-${index}`).join("\n");
+
+describe("EnhancedEditor double-submit continue", () => {
+  it("uses configured submit, consumes first, and sends continue on second", () => {
+    let continues = 0;
+    const editor = createEditor({}, {
+      submitMatches: (data) => data === "ctrl+j",
+      onContinue: () => {
+        continues += 1;
+      },
+    });
+
+    editor.handleInput("\r");
+    expect(continues).toBe(0);
+    editor.setText("");
+    editor.handleInput("ctrl+j");
+    editor.handleInput("ctrl+j");
+    expect(continues).toBe(1);
+    expect(editor.getText()).toBe("");
+  });
+
+  it("does not intercept non-empty or autocomplete-visible submits", () => {
+    const editor = createEditor({}, { submitMatches: () => true });
+    editor.setText(" ");
+    editor.handleInput("submit");
+    expect(editor.getText()).toBe(" submit");
+
+    const autocompleteEditor = createEditor({}, { submitMatches: () => true });
+    (autocompleteEditor as unknown as { isShowingAutocomplete: () => boolean }).isShowingAutocomplete = () => true;
+    autocompleteEditor.handleInput("submit");
+    expect(autocompleteEditor.getText()).toBe("submit");
+  });
+
+  it("disarms when programmatic text is submitted before another empty submit", () => {
+    let continues = 0;
+    const submitted: string[] = [];
+    const editor = createEditor({}, {
+      submitMatches: (data) => data === "\r",
+      onContinue: () => {
+        continues += 1;
+      },
+    });
+    editor.onSubmit = (text) => submitted.push(text);
+
+    editor.handleInput("\r");
+    editor.setText("prompt");
+    editor.handleInput("\r");
+    editor.handleInput("\r");
+
+    expect(submitted).toEqual(["prompt"]);
+    expect(continues).toBe(0);
+  });
+
+  it("disarms before native handling of an autocomplete-visible submit", () => {
+    let continues = 0;
+    let showingAutocomplete = false;
+    const editor = createEditor({}, {
+      submitMatches: (data) => data === "submit",
+      onContinue: () => {
+        continues += 1;
+      },
+    });
+    (
+      editor as unknown as { isShowingAutocomplete: () => boolean }
+    ).isShowingAutocomplete = () => showingAutocomplete;
+
+    editor.handleInput("submit");
+    showingAutocomplete = true;
+    editor.handleInput("submit");
+    showingAutocomplete = false;
+    editor.setText("");
+    editor.handleInput("submit");
+
+    expect(continues).toBe(0);
+  });
+
+  it("colors the full classic frame in normal and fixed rendering, then restores it on non-submit input", () => {
+    const editor = createEditor({}, { submitMatches: (data) => data === "submit" });
+    editor.handleInput("submit");
+
+    const normal = editor.render(40);
+    const fixed = editor.renderFixedEditorParts(40).editorLines;
+    const frameLines = normal.filter((line) => line.includes("─"));
+    expect(normal).toEqual(fixed);
+    expect(frameLines.length).toBeGreaterThanOrEqual(2);
+    expect(
+      frameLines.every(
+        (line) => line.startsWith("<warning>") && line.endsWith("</warning>")
+      )
+    ).toBe(true);
+
+    editor.handleInput("x");
+    const rendered = editor.render(40).join("\n");
+    expect(rendered).not.toContain("<warning>");
+    expect(editor.getText()).toBe("x");
+  });
+
+  it("colors Amp frame in normal and fixed rendering without coloring body", () => {
+    const editor = createEditor({}, {
+      editorChromeStyle: "amp",
+      submitMatches: (data) => data === "submit",
+    });
+    editor.handleInput("submit");
+
+    const normal = editor.render(40);
+    const fixed = editor.renderFixedEditorParts(40).editorLines;
+    expect(normal).toEqual(fixed);
+    expect(normal[0]).toStartWith("<warning>╭</warning>");
+    expect(normal.at(-1)).toStartWith("<warning>╰</warning>");
+    expect(normal.some((line) => line.includes("<warning>│</warning> "))).toBe(true);
+    expect(normal.join("\n")).not.toContain("<warning> </warning>");
+  });
+});
 
 describe("EnhancedEditor double paste", () => {
   it("lets the first large paste collapse natively, then expands without duplication or success notice", () => {
@@ -585,6 +705,29 @@ describe("EnhancedEditor command remap", () => {
     editor.handleInput("\x1b");
 
     expect(submitted).toEqual(["/anycopy"]);
+  });
+
+  it("resets an armed double escape on an empty configured submit", () => {
+    const submitted: string[] = [];
+    const editor = createEditor(
+      {},
+      {
+        doubleEscapeCommand: "anycopy",
+        canTriggerDoubleEscapeCommand: () => true,
+        interruptMatches: (data) => data === "\x1b",
+        submitMatches: (data) => data === "\r",
+      }
+    );
+
+    editor.onSubmit = (text) => {
+      submitted.push(text);
+    };
+
+    editor.handleInput("\x1b");
+    editor.handleInput("\r");
+    editor.handleInput("\x1b");
+
+    expect(submitted).toEqual([]);
   });
 
   it("supports commands that become available after editor attachment", () => {

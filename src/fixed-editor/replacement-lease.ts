@@ -1,5 +1,12 @@
 export interface ReplacementSurface {
   render(width: number): string[];
+
+  /**
+   * Handles scroll input intercepted by the fixed-editor compositor.
+   * Return `true` when the surface consumed the input; otherwise Pieditor
+   * preserves its root-scrolling behavior.
+   */
+  handleReplacementScrollInput?(data: string): boolean;
 }
 
 export interface ReplacementLeaseCompositor {

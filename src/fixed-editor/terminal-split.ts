@@ -1449,6 +1449,11 @@ export class TerminalSplitCompositor {
       this.keyboardScrollShortcuts
     );
     if (keyboardDelta !== 0) {
+      if (
+        getActiveReplacementSurface()?.handleReplacementScrollInput?.(data)
+      ) {
+        return { consume: true };
+      }
       this.scrollBy(keyboardDelta);
       return { consume: true };
     }
@@ -1459,15 +1464,21 @@ export class TerminalSplitCompositor {
     }
 
     const scrollableRows = this.getScrollableRows();
-    let didScroll = false;
-    for (const packet of mousePackets) {
-      const delta = mouseScrollDelta(packet);
-      if (delta !== 0 && packet.row <= scrollableRows) {
-        this.scrollBy(delta);
-        didScroll = true;
-      }
+    const scrollPackets = mousePackets.filter(
+      (packet) => mouseScrollDelta(packet) !== 0 && packet.row <= scrollableRows
+    );
+    if (scrollPackets.length === 0) {
+      return undefined;
     }
-    return didScroll ? { consume: true } : undefined;
+    if (
+      getActiveReplacementSurface()?.handleReplacementScrollInput?.(data)
+    ) {
+      return { consume: true };
+    }
+    for (const packet of scrollPackets) {
+      this.scrollBy(mouseScrollDelta(packet));
+    }
+    return { consume: true };
   }
 
   private handleMousePacket(packet: SgrMousePacket): void {

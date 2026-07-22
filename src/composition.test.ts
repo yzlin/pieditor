@@ -160,8 +160,12 @@ function createHarness(options: HarnessOptions) {
   const notifications: Array<{ message: string; level: string | undefined }> =
     [];
 
+  const sentMessages: Array<{ message: string; options?: { deliverAs: string } }> = [];
   const pi = {
     getCommands: () => [],
+    sendUserMessage(message: string, sendOptions?: { deliverAs: string }) {
+      sentMessages.push({ message, options: sendOptions });
+    },
   } as unknown as ExtensionAPI;
 
   const terminalInputHandlers: Array<
@@ -191,10 +195,11 @@ function createHarness(options: HarnessOptions) {
     theme: {},
   } as unknown as ExtensionUIContext;
 
+  let idle = true;
   const ctx = {
     hasUI: true,
     ui,
-    isIdle: () => true,
+    isIdle: () => idle,
     hasPendingMessages: () => false,
   } as unknown as ExtensionContext;
 
@@ -215,7 +220,8 @@ function createHarness(options: HarnessOptions) {
     selectList: {},
   } as unknown as EditorTheme;
   const keybindings = {
-    matches: () => false,
+    matches: (data: string, key: string) =>
+      data === "ctrl+j" && key === "tui.input.submit",
     getKeys: () => [],
   } as unknown as KeybindingsManager;
 
@@ -226,6 +232,10 @@ function createHarness(options: HarnessOptions) {
     keybindings,
     ctx,
     notifications,
+    sentMessages,
+    setIdle(value: boolean) {
+      idle = value;
+    },
     terminalInputHandlers,
     theme,
     tui,
@@ -250,6 +260,25 @@ afterEach(() => {
   for (const root of tempRoots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+describe("pieditor double-submit delivery", () => {
+  it("sends immediately while idle and queues a follow-up while busy", () => {
+    const idleHarness = createHarness({ fixedEditorEnabled: false });
+    const idleEditor = idleHarness.createEditor();
+    idleEditor.handleInput("ctrl+j");
+    idleEditor.handleInput("ctrl+j");
+    expect(idleHarness.sentMessages).toEqual([{ message: "continue" }]);
+
+    const busyHarness = createHarness({ fixedEditorEnabled: false });
+    busyHarness.setIdle(false);
+    const busyEditor = busyHarness.createEditor();
+    busyEditor.handleInput("ctrl+j");
+    busyEditor.handleInput("ctrl+j");
+    expect(busyHarness.sentMessages).toEqual([
+      { message: "continue", options: { deliverAs: "followUp" } },
+    ]);
+  });
 });
 
 describe("pieditor editor buffer copy", () => {

@@ -1109,6 +1109,66 @@ describe("terminal split compositor", () => {
     lease.release();
   });
 
+  it("forwards replacement scroll keys to an interactive leased surface", () => {
+    const inputs: string[] = [];
+    const renderable = {
+      render: (_width: number) => ["replacement"],
+      handleReplacementScrollInput: (data: string) => {
+        inputs.push(data);
+        return true;
+      },
+    };
+    const { compositor, tui } = createCompositor({
+      rootLines: ["root-1", "root-2", "root-3", "root-4", "root-5", "root-6"],
+      terminalRows: 5,
+    });
+    expect(compositor.install()).toBe(true);
+    attachReplacementLeaseCompositor(compositor);
+
+    const lease = acquireReplacementSurfaceLease({
+      owner: "agents",
+      id: "subagent-viewer",
+      target: renderable,
+    });
+    const rootBeforeInput = rootContent(tui.render?.(20));
+
+    expect(tui.listeners[0]?.("\u001b[5~")).toEqual({ consume: true });
+    expect(inputs).toEqual(["\u001b[5~"]);
+    expect(rootContent(tui.render?.(20))).toEqual(rootBeforeInput);
+
+    lease.release();
+  });
+
+  it("keeps root scrolling when a leased surface declines input", () => {
+    const inputs: string[] = [];
+    const renderable = {
+      render: (_width: number) => ["replacement"],
+      handleReplacementScrollInput: (data: string) => {
+        inputs.push(data);
+        return false;
+      },
+    };
+    const { compositor, tui } = createCompositor({
+      rootLines: ["root-1", "root-2", "root-3", "root-4", "root-5", "root-6"],
+      terminalRows: 5,
+    });
+    expect(compositor.install()).toBe(true);
+    attachReplacementLeaseCompositor(compositor);
+
+    const lease = acquireReplacementSurfaceLease({
+      owner: "agents",
+      id: "subagent-viewer",
+      target: renderable,
+    });
+    const rootBeforeInput = rootContent(tui.render?.(20));
+
+    expect(tui.listeners[0]?.("\u001b[5~")).toEqual({ consume: true });
+    expect(inputs).toEqual(["\u001b[5~"]);
+    expect(rootContent(tui.render?.(20))).not.toEqual(rootBeforeInput);
+
+    lease.release();
+  });
+
   it("re-enables fixed-editor mouse reporting after custom focus returns", () => {
     const editor = { render: (_width: number) => ["editor"] };
     const viewer = { render: (_width: number) => ["viewer"] };

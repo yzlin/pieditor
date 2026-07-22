@@ -20,6 +20,7 @@ This extension currently provides:
 - shell completions in `!` / `!!` mode
 - `alt+v` raw clipboard paste that bypasses Pi's large-paste markers
 - double-paste expansion for terminal bracketed pastes that Pi collapses into large-paste markers
+- double-submit on an exactly empty editor to send `continue`, with busy sessions using follow-up delivery
 - `alt+c` / `/copy-editor` raw active prompt editor buffer copy
 - optional remapping of the editor's empty-editor double-escape gesture to an extension command such as `/anycopy`
 - configurable command remapping (e.g. make `/tree` execute `/anycopy` instead)
@@ -41,6 +42,7 @@ Notable interactions:
 - Paste the same large terminal bracketed paste twice within 1000 ms to replace the collapsed draft with its expanded text. The first paste follows Pi's native marker behavior; the second works only while draft text is unchanged. Cursor-only movement, including leaving the cursor at the draft end, is allowed. Expansion replaces all currently valid Pi paste markers in the draft, not only the repeated one; this all-marker behavior avoids leaving hidden content but can expand unrelated earlier markers. Successful expansion through Pi's supported `setText()` moves the cursor to the end of the whole draft, even when the repeated marker was in the middle. One Undo immediately afterward restores the previously collapsed marker draft. `alt+v` remains a separate raw clipboard path and does not participate.
 - Press `alt+v` to paste clipboard text raw into the editor
 - Press `alt+c` or run `/copy-editor` to copy the active prompt editor buffer as raw text; it copies only current editor text, not transcript output, selection text, footer/status text, or overlay/replacement UI contents. If the editor is empty it reports `Editor buffer empty` and does not modify the clipboard.
+- Press the configured submit key twice within 500 ms on an exactly empty editor to send `continue`; the warning-colored frame marks the armed interval, autocomplete retains native submit handling, and any non-submit input cancels the gesture.
 - If the standalone `extensions/caveman` extension is loaded, built-in presets show the active `🪨 caveman` indicator through the dedicated `caveman` segment; custom segment lists must include `caveman` or `extension_statuses` to show it.
 - If the standalone `extensions/fast` extension is loaded, status key `fast` is appended to the `model` segment as compact `⚡` or `⚡*` without a dot separator. `extension_statuses` suppresses `fast` when `model` is configured.
 - Optionally configure `doubleEscapeCommand` in `~/.pi/agent/pieditor.json` or `.pi/pieditor.json` to invoke an extension command on double-escape when the editor is empty and Pi is idle
@@ -260,7 +262,7 @@ Behavior while leased:
 - If fixed editor mode is active, the leased target is hidden from the fixed-editor compositor and the terminal is repainted.
 - If no compositor is attached, lease acquisition is a no-op for rendering but diagnostics still track the active lease.
 - If a compositor attaches after a lease exists, it immediately hides all currently leased targets.
-- While any replacement lease is active, the terminal split compositor remains installed but bypasses fixed-editor reservation/repaint, root scrollbar decoration, and fixed-editor scroll/mouse/selection handling so the replacement UI owns the surface.
+- While any replacement lease is active, the terminal split compositor renders the leased surface in place of the fixed editor. A surface may provide `handleReplacementScrollInput(data): boolean`; returning `true` forwards and consumes intercepted keyboard or mouse scroll input, while returning `false` (or omitting the method) preserves fixed-editor root scrolling.
 - Editor detach/session shutdown clears all leases and detaches the compositor.
 
 Diagnostics:

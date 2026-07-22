@@ -31,6 +31,10 @@ import {
 import { wrapProviderWithShellAndAtFiltering } from "./autocomplete.js";
 import { remapCommand } from "./command-remap.js";
 import {
+  DoubleSubmitContinue,
+  matchesConfiguredSubmit,
+} from "./double-enter-continue.js";
+import {
   consumeDoubleEscape,
   matchesInterrupt,
   shouldHandleConfiguredDoubleEscape,
@@ -58,6 +62,7 @@ interface EditorRenderCache {
 }
 
 interface EnhancedEditorOptions {
+  onContinue: () => void;
   getDoubleEscapeCommand: () => string | null;
   canTriggerDoubleEscapeCommand: () => boolean;
   commandRemap: Record<string, string>;
@@ -72,6 +77,10 @@ interface EnhancedEditorOptions {
 
 const VALID_PASTE_MARKER = /^\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]$/;
 const PASTE_MARKER_TOKEN = /\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]/;
+const ANSI_SGR_PATTERN = new RegExp(
+  `${String.fromCharCode(27)}\\[[0-9;]*m`,
+  "g"
+);
 
 function insertedText(before: string, after: string): string | null {
   let prefixLength = 0;
@@ -172,6 +181,7 @@ export class EnhancedEditor extends CustomEditor {
   private readonly wrappedAutocompleteProviders = new WeakSet<AutocompleteProvider>();
   private lastEscapeTime = 0;
   private submitHandler?: (text: string) => void;
+  private readonly doubleSubmitContinue: DoubleSubmitContinue;
 
   private readonly shell: ShellInfo;
   private readonly ui: ExtensionUIContext;
@@ -195,10 +205,23 @@ export class EnhancedEditor extends CustomEditor {
     this.options = options;
     this.keybindingsManager = keybindingsManager;
     this.shell = findCompletionShell();
+    this.doubleSubmitContinue = new DoubleSubmitContinue({
+      onArmedChange: () => {
+        this.editorRenderCache = null;
+        this.tuiInstance.requestRender();
+      },
+    });
 
     this.installOnSubmitInterceptor();
 
     this.ui.notify(`pieditor loaded (shell: ${this.shell.type})`, "info");
+  }
+
+  setText(text: string): void {
+    super.setText(text);
+    if (text !== "") {
+      this.doubleSubmitContinue.nonSubmitInput();
+    }
   }
 
   private installOnSubmitInterceptor(): void {
@@ -263,6 +286,23 @@ export class EnhancedEditor extends CustomEditor {
       return;
     }
 
+    if (!matchesInterrupt(this.keybindingsManager, data)) {
+      this.lastEscapeTime = 0;
+    }
+
+    const isQualifyingSubmit =
+      matchesConfiguredSubmit(this.keybindingsManager, data) &&
+      !this.isShowingAutocomplete() &&
+      this.getText() === "";
+    if (isQualifyingSubmit) {
+      const action = this.doubleSubmitContinue.qualifyingSubmit();
+      if (action === "continue") {
+        this.options.onContinue();
+      }
+      return;
+    }
+    this.doubleSubmitContinue.nonSubmitInput();
+
     if (
       this.options.doublePaste.enabled &&
       this.handleBracketedPasteInput(data)
@@ -284,10 +324,6 @@ export class EnhancedEditor extends CustomEditor {
     ) {
       this.handleConfiguredDoubleEscape(doubleEscapeCommand);
       return;
-    }
-
-    if (!matchesInterrupt(this.keybindingsManager, data)) {
-      this.lastEscapeTime = 0;
     }
 
     // Intercept @ at token start to open picker
@@ -482,6 +518,10 @@ export class EnhancedEditor extends CustomEditor {
     return before === " " || before === "\t" || before === undefined;
   }
 
+  dispose(): void {
+    this.doubleSubmitContinue.dispose();
+  }
+
   renderFixedEditorParts(width: number): FixedEditorParts {
     if (this.options.editorChrome.style === "amp" && width >= MIN_AMP_WIDTH) {
       const baseEditorLines = this.renderEditorLines(
@@ -492,16 +532,26 @@ export class EnhancedEditor extends CustomEditor {
           width,
           editorLines: baseEditorLines,
           labels: this.buildAmpLabels(width),
-          borderColor: (value) => this.editorTheme.borderColor(value),
+          borderColor: this.doubleSubmitContinue.isArmed()
+            ? (value) => this.ui.theme.fg("warning", value)
+            : (value) => this.editorTheme.borderColor(value),
         }),
       };
     }
 
     const baseEditorLines = this.renderEditorLines(width);
+    const editorLines = this.doubleSubmitContinue.isArmed()
+      ? baseEditorLines.map((line) => {
+          const plain = line.replace(ANSI_SGR_PATTERN, "");
+          return plain.startsWith("─")
+            ? this.ui.theme.fg("warning", plain)
+            : line;
+        })
+      : baseEditorLines;
     const statusLine = this.renderStatusLine(width, baseEditorLines);
     return {
       statusLines: statusLine === null ? undefined : [statusLine],
-      editorLines: baseEditorLines,
+      editorLines,
     };
   }
 

@@ -326,6 +326,13 @@ export function createPieditorComposition(
           keybindings,
           ctx.ui,
           {
+            onContinue: () => {
+              if (runtime.activeContext?.isIdle()) {
+                pi.sendUserMessage("continue");
+              } else {
+                pi.sendUserMessage("continue", { deliverAs: "followUp" });
+              }
+            },
             getDoubleEscapeCommand,
             canTriggerDoubleEscapeCommand: () => {
               if (!runtime.activeContext) {
@@ -385,6 +392,7 @@ export function createPieditorComposition(
     },
 
     detachEditor(): void {
+      runtime.activeEditor?.dispose();
       clearAboveEditorSurfaceLeases();
       clearReplacementSurfaceLeases();
       disposeFixedEditorCompositor();

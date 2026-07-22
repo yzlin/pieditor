@@ -17,6 +17,7 @@ Current feature areas:
 - top-border status bar
 - raw clipboard paste via `alt+v`
 - terminal bracketed double-paste expansion
+- empty-editor double-submit continuation
 - raw active prompt editor buffer copy via `alt+c` and `/copy-editor`
 - optional double-escape command trigger
 - slash-command remapping at submit time
@@ -48,6 +49,7 @@ Editor behavior only.
 Owns:
 - submit interception and command remap
 - double-escape timing/decision logic
+- configured-submit detection and double-submit continuation state/frame rendering
 - double-paste inspection/state and native marker confirmation through supported editor text APIs
 - autocomplete wrapping
 - status-bar insertion above the native editor border
@@ -69,6 +71,7 @@ Owns:
 - terminal split compositor primitives
 - root scrollback visual scrollbar decoration: one rightmost-column gutter, dim gray `█` track, bright white `█` thumb
 - above-editor lease surfaces used for fixed-mode transient UI, including the local `ui.select()` / `ui.confirm()` shim
+- optional scroll-input delegation to interactive replacement-lease surfaces, with render-only surfaces retaining fixed-editor root scrolling
 
 Runtime lifecycle installation, send-triggered root scrollback bottom jumps, and `ui.select()` / `ui.confirm()` shim wiring are owned by `src/composition.ts` when that integration is enabled. The shim is scoped to this extension context, only takes over while the fixed compositor is installed, and falls back to Pi's original prompt methods otherwise.
 

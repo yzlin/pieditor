@@ -164,6 +164,23 @@ describe("replacement surface leases", () => {
     expect(getActiveReplacementLeaseDiagnostics()).toEqual([]);
   });
 
+  it("accepts standard TUI components with void input handlers", () => {
+    const component = {
+      render: (_width: number) => ["component"],
+      handleInput: (_data: string): void => undefined,
+    };
+    const surface: ReplacementSurface = component;
+
+    const lease = acquireReplacementSurfaceLease({
+      owner: "component",
+      id: "void-handler",
+      target: surface,
+    });
+
+    expect(surface.render(20)).toEqual(["component"]);
+    lease.release();
+  });
+
   it("is a safe no-op when no compositor is attached", () => {
     const surface = new MockSurface();
 
