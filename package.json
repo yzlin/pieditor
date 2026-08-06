@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Pi editor extension with enhanced editor, file picker, shell completions, and status bar.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yzlin/pieditor"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
