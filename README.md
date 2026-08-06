@@ -28,7 +28,7 @@ This extension currently provides:
 
 ## Usage
 
-This extension mostly integrates directly into the editor, with one runtime toggle command surface.
+This extension requires Pi `^0.84.0` and integrates directly into Pi's editor. Choose Pi's official fullscreen mode through `/settings` or launch with `--tui-mode fullscreen`; pieditor works with both Pi-owned regular and fullscreen rendering and never forces or migrates that setting.
 
 Notable interactions:
 - Type `@` at token start to open the file picker
@@ -47,13 +47,6 @@ Notable interactions:
 - If the standalone `extensions/fast` extension is loaded, status key `fast` is appended to the `model` segment as compact `⚡` or `⚡*` without a dot separator. `extension_statuses` suppresses `fast` when `model` is configured.
 - Optionally configure `doubleEscapeCommand` in `~/.pi/agent/pieditor.json` or `.pi/pieditor.json` to invoke an extension command on double-escape when the editor is empty and Pi is idle
 - Optionally configure `commandRemap` in `~/.pi/agent/pieditor.json` or `.pi/pieditor.json` to redirect slash commands at submit time (e.g. typing `/tree` executes `/anycopy` instead)
-- Use `/pieditor fixed-editor [on|off|toggle|status]` to toggle fixed editor mode for the live runtime and persist the global `fixedEditor.enabled` setting; project `.pi/pieditor.json` overrides still win on the next load
-- Fixed editor mode reserves the root scrollback viewport's rightmost column for a visual-only scrollbar: dim gray `█` track, bright white `█` thumb; it has no configuration and stays out of overlay rendering
-- When a user message starts or a follow-up queue update arrives, fixed editor mode jumps the root scrollback back to the bottom; manual root scrollback remains available between sends
-- Internal local extensions that temporarily replace the editor/custom UI surface can acquire a replacement-surface lease so fixed editor mode stands down while the replacement UI is active
-- While fixed editor mode is active, `ui.select()` and `ui.confirm()` prompts from this extension are rendered in a small above-editor panel instead of replacing the fixed editor; arrow keys or `j`/`k` move selection, `enter` accepts, and `esc`/`ctrl+c` cancels
-- Pi built-in selector components such as `/model` are also lifted above the fixed editor while they have focus
-- Editor popup rows such as slash-command autocomplete are kept above the fixed editor instead of below its border
 
 ## Configuration
 
@@ -92,12 +85,7 @@ Then add the rest of your config fields:
   - only a complete bracketed paste that Pi actually turns into a valid `[paste #…]` marker can arm the feature; short pastes and typed marker-like text do not
   - editing draft text permanently cancels eligibility, even if Undo restores the draft; cursor-only movement does not
   - successful expansion uses Pi's supported full expansion and expands all valid markers in the draft; if expanded content still looks like a paste marker, the repeat falls back to native paste to avoid re-expansion on submit
-- `fixedEditor`: nested fixed editor config; disabled by default and only active after explicit opt-in
-  - `enabled`: default `false`; opt in to fixed editor mode
-  - `mouseScroll`: default `true`; allow mouse wheel scrolling in fixed editor mode
-  - `scrollUpShortcuts`: default `["super+up"]`; shortcut or shortcuts for scrolling the fixed editor viewport up
-  - `scrollDownShortcuts`: default `["super+down"]`; shortcut or shortcuts for scrolling the fixed editor viewport down
-  - `/pieditor fixed-editor [on|off|toggle|status]` updates the live runtime and saves `enabled` in the global config; if project `.pi/pieditor.json` sets `fixedEditor.enabled`, that project override wins after the next load and `status` marks it as active
+- The old `fixedEditor` config is obsolete and ignored. Remove it and choose Pi's official fullscreen mode through `/settings` or `--tui-mode fullscreen` instead.
 - `filePicker`: nested file picker config
   - `respectGitignore`: default `true`
   - `skipHidden`: default `true`
@@ -110,7 +98,7 @@ Then add the rest of your config fields:
     - `"builtin"`: always use Pi's built-in JS highlighter and skip native warmup/load work
     - `"native"`: use the optional picker-local Rust/syntect highlighter backed by bat's embedded compiled assets, with Pi built-in highlighting as runtime fallback if the native binary is unavailable
 - `editorChrome`: nested editor chrome config
-  - `style`: `classic` or `amp` (default `classic`); `classic` preserves the existing editor chrome. `amp` uses rounded Amp-style editor borders in normal and fixed-editor mode, keeps status-bar `leftSegments` and `rightSegments` split across the top border with border-line fill between them, moves configured `path`/`git` status segments to the right-aligned bottom border, keeps an empty Amp frame when `statusBar.enabled` is `false`, and falls back to classic editor lines in very narrow terminals. It does not add Amp non-editor UI, color config, or other Amp features.
+  - `style`: `classic` or `amp` (default `classic`); `classic` preserves the existing editor chrome. `amp` uses rounded Amp-style editor borders, keeps status-bar `leftSegments` and `rightSegments` split across the top border with border-line fill between them, moves configured `path`/`git` status segments to the right-aligned bottom border, keeps an empty Amp frame when `statusBar.enabled` is `false`, and falls back to classic editor lines in very narrow terminals. It does not add Amp non-editor UI, color config, or other Amp features.
 - `statusBar`: nested status-bar config
   - `enabled`: default `true`
   - `preset`: one of `default`, `minimal`, `compact`, `full`, `nerd`, `ascii`; default `default`
@@ -167,12 +155,6 @@ Then add the rest of your config fields:
   "editorChrome": {
     "style": "classic"
   },
-  "fixedEditor": {
-    "enabled": false,
-    "mouseScroll": true,
-    "scrollUpShortcuts": ["super+up"],
-    "scrollDownShortcuts": ["super+down"]
-  },
   "filePicker": {
     "respectGitignore": true,
     "skipHidden": true,
@@ -217,7 +199,7 @@ Runtime merge order for pieditor config is:
 2. global `~/.pi/agent/pieditor.json`
 3. project `.pi/pieditor.json`
 
-`commandRemap` maps are merged by key. `doublePaste`, `editorChrome`, `fixedEditor`, `filePicker`, and `statusBar` values are merged by field, with later layers winning; invalid `editorChrome.style` values are ignored so lower layers/defaults still apply. `fixedEditor` shortcut arrays and `filePicker.skipPatterns` come from the last layer that sets them. `statusBar.leftSegments` and `statusBar.rightSegments` are each replaced by the last layer that sets them, `separator` takes the last configured literal string, `colors` merge by semantic key, and `segmentOptions` merge per nested field.
+`commandRemap` maps are merged by key. `doublePaste`, `editorChrome`, `filePicker`, and `statusBar` values are merged by field, with later layers winning; invalid `editorChrome.style` values are ignored so lower layers/defaults still apply. `filePicker.skipPatterns` comes from the last layer that sets it. `statusBar.leftSegments` and `statusBar.rightSegments` are each replaced by the last layer that sets them, `separator` takes the last configured literal string, `colors` merge by semantic key, and `segmentOptions` merge per nested field.
 
 Config layout:
 
@@ -231,44 +213,7 @@ project-root/
 └── pieditor.json
 ```
 
-## Replacement-surface lease interop API
-
-`@yzlin/pieditor/replacement-surface-lease` exposes a narrow public interop API for extensions that temporarily replace the editor surface, such as `ctx.ui.custom` flows. Use it when another extension needs pieditor fixed-editor mode to stand down while that replacement UI owns the surface.
-
-Typical usage:
-
-```ts
-await withReplacementSurfaceLease(
-  {
-    owner: "questionnaire",
-    id: "custom-ui",
-    target: QUESTIONNAIRE_REPLACEMENT_SURFACE,
-  },
-  async () => ctx.ui.custom(component)
-);
-```
-
-API surface:
-
-- `acquireReplacementSurfaceLease({ owner, id, target })`: acquires a lease and returns `{ owner, id, release() }`. `release()` is idempotent.
-- `withReplacementSurfaceLease(options, run)`: async helper that always releases in `finally`, including thrown UI errors or cancellation paths.
-- `getActiveReplacementLeaseDiagnostics()`: returns active `{ owner, id }` entries for status reporting and tests.
-- `clearReplacementSurfaceLeases()`: clears all active leases during editor/session teardown.
-- `attachReplacementLeaseCompositor(compositor | null)`: composition hook used by fixed editor mode; callers should not use it directly.
-
-Behavior while leased:
-
-- Multiple leases are additive. A target is unhidden only after its last lease releases.
-- If fixed editor mode is active, the leased target is hidden from the fixed-editor compositor and the terminal is repainted.
-- If no compositor is attached, lease acquisition is a no-op for rendering but diagnostics still track the active lease.
-- If a compositor attaches after a lease exists, it immediately hides all currently leased targets.
-- While any replacement lease is active, the terminal split compositor renders the leased surface in place of the fixed editor. A surface may provide `handleReplacementScrollInput(data): boolean`; returning `true` forwards and consumes intercepted keyboard or mouse scroll input, while returning `false` (or omitting the method) preserves fixed-editor root scrolling.
-- Editor detach/session shutdown clears all leases and detaches the compositor.
-
-Diagnostics:
-
-- `/pieditor fixed-editor status` includes `replacement leases: 0` when none are active.
-- While leases are active, status reports the count and owners, for example `replacement leases: 1 (questionnaire)`.
+The former `@yzlin/pieditor/replacement-surface-lease` export has been removed. This is a breaking API change; consumers must remove that integration and rely on Pi-owned rendering.
 
 ## Native preview addon
 
@@ -301,13 +246,9 @@ Current scope:
 - If the configured command is not a registered extension command, the extension warns and falls back to native behavior
 - Command remapping intercepts at the editor submission layer via `onSubmit`, so it applies uniformly to all submit paths (Enter, double-escape gesture, etc.) and works with any command type — built-in, extension, skill, or template. If a remap target doesn't exist as a registered command, pi treats it as a regular prompt
 - Because this extension owns `setEditorComponent()`, disable standalone editor-replacement extensions such as `shell-completions/`, `file-picker.ts`, and `raw-paste.ts` to avoid conflicts
-- `alt+c` and `/copy-editor` share the same copy path and only run when the active prompt editor is ready; overlays or replacement-surface leases report `Editor not ready`.
-- Fixed editor mode conflicts with `pi-powerline-footer`'s fixed editor mode; enable only one fixed editor compositor at a time
+- `alt+c` and `/copy-editor` share the same copy path and only run when the active prompt editor is ready; overlays report `Editor not ready`.
 
 ## Manual validation notes
 
-- Start Pi without `fixedEditor.enabled` and confirm the native editor remains unchanged
+- With Pi `^0.84.0`, verify pieditor in both regular and official fullscreen modes, including switching through `/settings`; confirm pieditor does not change the selected mode
 - Type text in the prompt editor, press `alt+c`, then run `/copy-editor`; confirm both copy the same raw editor buffer, empty buffers report `Editor buffer empty`, and active overlays report `Editor not ready`
-- Run `/pieditor fixed-editor on`, `/pieditor fixed-editor off`, `/pieditor fixed-editor toggle`, and `/pieditor fixed-editor status`; confirm notifications, live behavior, and global `~/.pi/agent/pieditor.json` persistence
-- With fixed editor enabled, confirm mouse wheel scrolling follows `mouseScroll` and configured scroll shortcuts move the fixed editor viewport
-- Add project `.pi/pieditor.json` with `fixedEditor.enabled` set opposite the global value, restart/reload Pi, and confirm the project value wins; `status` should report the project override

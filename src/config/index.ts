@@ -1,13 +1,6 @@
-import { randomBytes } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 import type {
   PickerConfig,
@@ -26,14 +19,6 @@ import {
   mergeFilePickerConfigs,
   normalizeFilePickerConfig,
 } from "./file-picker.js";
-import {
-  type FixedEditorConfig,
-  type FixedEditorRuntimeConfig,
-  mergeFixedEditorConfigs,
-  normalizeFixedEditorConfig,
-} from "./fixed-editor.js";
-
-export * from "./fixed-editor.js";
 
 export interface StatusBarConfig {
   enabled?: boolean;
@@ -82,7 +67,6 @@ export interface EditorEnhancementsConfig {
   doublePaste?: DoublePasteConfig;
   filePicker?: PickerConfig;
   statusBar?: StatusBarConfig;
-  fixedEditor?: FixedEditorConfig;
 }
 
 export interface EditorEnhancementsRuntimeConfig {
@@ -92,7 +76,6 @@ export interface EditorEnhancementsRuntimeConfig {
   doublePaste: DoublePasteRuntimeConfig;
   filePicker: PickerRuntimeConfig;
   statusBar: StatusBarRuntimeConfig;
-  fixedEditor: FixedEditorRuntimeConfig;
 }
 
 interface EditorEnhancementsConfigLayer {
@@ -102,7 +85,6 @@ interface EditorEnhancementsConfigLayer {
   doublePaste?: Partial<DoublePasteRuntimeConfig>;
   filePicker?: Partial<PickerRuntimeConfig>;
   statusBar?: Partial<StatusBarRuntimeConfig>;
-  fixedEditor?: Partial<FixedEditorRuntimeConfig>;
 }
 
 interface LoadConfigOptions {
@@ -126,7 +108,6 @@ const DEFAULT_CONFIG: EditorEnhancementsRuntimeConfig = {
     enabled: true,
     preset: "default",
   },
-  fixedEditor: mergeFixedEditorConfigs(),
 };
 
 export function normalizeCommandName(value: unknown): string | null {
@@ -480,10 +461,6 @@ function loadConfigFile(
       next.statusBar = normalizeStatusBarConfig(parsed.statusBar);
     }
 
-    if (Object.hasOwn(parsed, "fixedEditor")) {
-      next.fixedEditor = normalizeFixedEditorConfig(parsed.fixedEditor);
-    }
-
     return next;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -547,11 +524,6 @@ export function resolveRuntimeConfig(
         projectConfig?.statusBar?.segmentOptions
       ),
     },
-    fixedEditor: mergeFixedEditorConfigs(
-      DEFAULT_CONFIG.fixedEditor,
-      globalConfig?.fixedEditor,
-      projectConfig?.fixedEditor
-    ),
   };
 }
 
@@ -565,96 +537,6 @@ export function getGlobalPieditorConfigPath(homeDir = getHomeDir()): string {
 
 export function getProjectPieditorConfigPath(cwd = process.cwd()): string {
   return join(cwd, ".pi", "pieditor.json");
-}
-
-type PersistFixedEditorEnabledResult =
-  | { ok: true; configPath: string; config: EditorEnhancementsRuntimeConfig }
-  | { ok: false; configPath: string; error: string };
-
-function isPlainConfigObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function readConfigObjectForPersistence(
-  configPath: string
-): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
-  if (!existsSync(configPath)) {
-    return { ok: true, value: {} };
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(configPath, "utf-8"));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: `Invalid JSON in ${configPath}: ${message}` };
-  }
-
-  if (!isPlainConfigObject(parsed)) {
-    return { ok: false, error: `${configPath} must contain a JSON object` };
-  }
-
-  return { ok: true, value: parsed };
-}
-
-function writeConfigObjectAtomically(
-  configPath: string,
-  value: Record<string, unknown>
-): void {
-  const tempPath = `${configPath}.${randomBytes(8).toString("hex")}.tmp`;
-  mkdirSync(dirname(configPath), { recursive: true });
-  writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
-  renameSync(tempPath, configPath);
-}
-
-export function saveGlobalFixedEditorEnabled(
-  enabled: boolean,
-  options: Pick<LoadConfigOptions, "homeDir" | "cwd"> = {}
-): PersistFixedEditorEnabledResult {
-  const homeDir = options.homeDir ?? getHomeDir();
-  const cwd = options.cwd ?? process.cwd();
-  const configPath = getGlobalPieditorConfigPath(homeDir);
-  const current = readConfigObjectForPersistence(configPath);
-
-  if (!current.ok) {
-    return { ok: false, configPath, error: current.error };
-  }
-
-  const fixedEditor = isPlainConfigObject(current.value.fixedEditor)
-    ? current.value.fixedEditor
-    : {};
-  const next = {
-    ...current.value,
-    fixedEditor: {
-      ...fixedEditor,
-      enabled,
-    },
-  };
-
-  try {
-    writeConfigObjectAtomically(configPath, next);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, configPath, error: message };
-  }
-
-  return { ok: true, configPath, config: loadConfig({ homeDir, cwd }) };
-}
-
-export function hasProjectFixedEditorEnabledOverride(
-  options: Pick<LoadConfigOptions, "cwd"> = {}
-): boolean {
-  const configPath = getProjectPieditorConfigPath(options.cwd ?? process.cwd());
-  const current = readConfigObjectForPersistence(configPath);
-
-  if (!current.ok) {
-    return false;
-  }
-
-  return (
-    isPlainConfigObject(current.value.fixedEditor) &&
-    Object.hasOwn(current.value.fixedEditor, "enabled")
-  );
 }
 
 export function loadConfig(

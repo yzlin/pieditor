@@ -12,7 +12,7 @@ This directory holds maintainer-focused documentation for `pieditor`.
 ## Start here
 
 - [`../README.md`](../README.md) — user-facing overview, usage, and configuration reference.
-- [`architecture.md`](./architecture.md) — internal ownership boundaries, editor lifecycle wiring, fixed-editor behavior, and native preview addon notes.
+- [`architecture.md`](./architecture.md) — internal ownership boundaries, editor lifecycle wiring, Pi TUI mode ownership, and native preview addon notes.
 
 ## Documentation split
 

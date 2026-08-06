@@ -4,7 +4,6 @@ import type {
   ExtensionContext,
   ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
-import { CustomEditor } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, AutocompleteProvider } from "@earendil-works/pi-tui";
 
 import { renderAmpEditorChrome } from "./editor/amp-chrome";
@@ -239,14 +238,12 @@ describe("EnhancedEditor double-submit continue", () => {
     expect(continues).toBe(0);
   });
 
-  it("colors the full classic frame in normal and fixed rendering, then restores it on non-submit input", () => {
+  it("colors the full classic frame while armed, then restores it on non-submit input", () => {
     const editor = createEditor({}, { submitMatches: (data) => data === "submit" });
     editor.handleInput("submit");
 
     const normal = editor.render(40);
-    const fixed = editor.renderFixedEditorParts(40).editorLines;
     const frameLines = normal.filter((line) => line.includes("─"));
-    expect(normal).toEqual(fixed);
     expect(frameLines.length).toBeGreaterThanOrEqual(2);
     expect(
       frameLines.every(
@@ -260,7 +257,7 @@ describe("EnhancedEditor double-submit continue", () => {
     expect(editor.getText()).toBe("x");
   });
 
-  it("colors Amp frame in normal and fixed rendering without coloring body", () => {
+  it("colors Amp frame while armed without coloring body", () => {
     const editor = createEditor({}, {
       editorChromeStyle: "amp",
       submitMatches: (data) => data === "submit",
@@ -268,8 +265,6 @@ describe("EnhancedEditor double-submit continue", () => {
     editor.handleInput("submit");
 
     const normal = editor.render(40);
-    const fixed = editor.renderFixedEditorParts(40).editorLines;
-    expect(normal).toEqual(fixed);
     expect(normal[0]).toStartWith("<warning>╭</warning>");
     expect(normal.at(-1)).toStartWith("<warning>╰</warning>");
     expect(normal.some((line) => line.includes("<warning>│</warning> "))).toBe(true);
@@ -934,97 +929,6 @@ describe("EnhancedEditor command remap", () => {
 
     expect(lines[0]).toContain("test-model");
     expect(lines[1]).toBe("─".repeat(width));
-  });
-
-  it("uses Amp chrome for fixed editor parts without separate status lines", () => {
-    const editor = createEditor(
-      {},
-      {
-        editorChromeStyle: "amp",
-        statusBarEnabled: true,
-        statusBarContext: createStatusBarContext(),
-        statusBarFooterData: createStatusBarFooterData(),
-      }
-    );
-
-    const parts = editor.renderFixedEditorParts(60);
-
-    expect(parts.statusLines).toBeUndefined();
-    expect(parts.editorLines[0]).toStartWith("╭");
-    expect(parts.editorLines[0]).toContain("test-model");
-    expect(parts.editorLines.at(-1)).toContain("main");
-  });
-
-  it("updates fixed editor status without rerendering base editor lines", () => {
-    let widgetStatus = "widget-a";
-    let baseRenderCount = 0;
-    const originalRender = CustomEditor.prototype.render;
-    CustomEditor.prototype.render = function renderWithCount(width: number) {
-      baseRenderCount += 1;
-      return originalRender.call(this, width);
-    };
-
-    try {
-      const editor = createEditor(
-        {},
-        {
-          statusBarEnabled: true,
-          statusBarContext: createStatusBarContext(),
-          statusBarFooterData: createStatusBarFooterData(
-            () => new Map([["custom", widgetStatus]])
-          ),
-        }
-      );
-      const width = 140;
-
-      const first = editor.renderFixedEditorParts(width);
-      widgetStatus = "widget-b";
-      const second = editor.renderFixedEditorParts(width);
-
-      expect(baseRenderCount).toBe(1);
-      expect(first.statusLines?.[0]).toContain("widget-a");
-      expect(second.statusLines?.[0]).toContain("widget-b");
-      expect(second.editorLines).toEqual(first.editorLines);
-    } finally {
-      CustomEditor.prototype.render = originalRender;
-    }
-  });
-
-  it("rerenders fixed editor lines when terminal height changes", () => {
-    let baseRenderCount = 0;
-    const originalRender = CustomEditor.prototype.render;
-    CustomEditor.prototype.render = function renderWithCount(width: number) {
-      baseRenderCount += 1;
-      return originalRender.call(this, width);
-    };
-
-    try {
-      const editor = createEditor({});
-      const tui = Reflect.get(editor, "tuiInstance") as {
-        terminal: { rows: number };
-      };
-      const width = 40;
-
-      editor.renderFixedEditorParts(width);
-      tui.terminal.rows = 12;
-      editor.renderFixedEditorParts(width);
-
-      expect(baseRenderCount).toBe(2);
-    } finally {
-      CustomEditor.prototype.render = originalRender;
-    }
-  });
-
-  it("rerenders fixed editor lines when editor text changes", () => {
-    const editor = createEditor({});
-    const width = 40;
-
-    const first = editor.renderFixedEditorParts(width);
-    editor.setText("changed text");
-    const second = editor.renderFixedEditorParts(width);
-
-    expect(second.editorLines).not.toEqual(first.editorLines);
-    expect(second.editorLines.join("\n")).toContain("changed text");
   });
 
   it("skips the status bar once the context is detached", () => {

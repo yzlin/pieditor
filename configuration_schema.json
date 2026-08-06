@@ -28,10 +28,6 @@
     },
     "statusBar": {
       "$ref": "#/$defs/statusBarConfig"
-    },
-    "fixedEditor": {
-      "$ref": "#/$defs/fixedEditorConfig",
-      "description": "Optional fixed editor config. Disabled by default; opt in globally or per project."
     }
   },
   "$defs": {
@@ -44,7 +40,7 @@
           "type": "string",
           "enum": ["classic", "amp"],
           "default": "classic",
-          "description": "Editor chrome style. 'classic' preserves the current editor chrome; 'amp' uses rounded Amp-style editor borders in normal and fixed-editor mode, moves path/git status to the bottom border, keeps other enabled status in the top border, keeps an empty frame when statusBar.enabled is false, and falls back to classic lines in very narrow terminals."
+          "description": "Editor chrome style. 'classic' preserves the current editor chrome; 'amp' uses rounded Amp-style editor borders, moves path/git status to the bottom border, keeps other enabled status in the top border, keeps an empty frame when statusBar.enabled is false, and falls back to classic lines in very narrow terminals."
         }
       }
     },
@@ -286,50 +282,6 @@
         },
         "segmentOptions": {
           "$ref": "#/$defs/statusBarSegmentOptions"
-        }
-      }
-    },
-    "fixedEditorShortcutList": {
-      "oneOf": [
-        {
-          "type": "string",
-          "minLength": 1
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "minItems": 1
-        }
-      ],
-      "description": "Keyboard shortcut or shortcuts accepted by Pi key matching, e.g. super+up or ctrl+shift+up."
-    },
-    "fixedEditorConfig": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Fixed editor mode config for pieditor. Do not enable with pi-powerline-footer's fixed editor mode because both own terminal split composition.",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "Opt in to fixed editor mode. Runtime command /pieditor fixed-editor [on|off|toggle|status] changes the live runtime and saves this value globally; project .pi/pieditor.json overrides still win on the next load."
-        },
-        "mouseScroll": {
-          "type": "boolean",
-          "default": true,
-          "description": "Allow mouse wheel scrolling in fixed editor mode when enabled."
-        },
-        "scrollUpShortcuts": {
-          "$ref": "#/$defs/fixedEditorShortcutList",
-          "default": ["super+up"],
-          "description": "Shortcut or shortcuts that scroll the fixed editor viewport up."
-        },
-        "scrollDownShortcuts": {
-          "$ref": "#/$defs/fixedEditorShortcutList",
-          "default": ["super+down"],
-          "description": "Shortcut or shortcuts that scroll the fixed editor viewport down."
         }
       }
     }

@@ -2,40 +2,20 @@ import {
   copyToClipboard,
   type ExtensionAPI,
   type ExtensionContext,
-  type InputEvent,
   type KeybindingsManager,
   type ReadonlyFooterDataProvider,
   type Theme,
 } from "@earendil-works/pi-coding-agent";
 import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 
-import { type FixedEditorRuntimeConfig, loadConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import { EnhancedEditor } from "./enhanced-editor.js";
 import { warmPreviewHighlighter } from "./file-picker-highlight.js";
-import {
-  attachAboveEditorLeaseCompositor,
-  clearAboveEditorSurfaceLeases,
-} from "./fixed-editor/above-editor-lease.js";
-import { renderFixedEditorCluster } from "./fixed-editor/cluster.js";
-import {
-  attachReplacementLeaseCompositor,
-  clearReplacementSurfaceLeases,
-  getActiveReplacementLeaseDiagnostics,
-  onReplacementSurfaceLeaseChange,
-} from "./fixed-editor/replacement-lease.js";
-import { FixedSelectConfirmShim } from "./fixed-editor/select-confirm-shim.js";
-import {
-  TerminalSplitCompositor,
-  type TuiLike,
-} from "./fixed-editor/terminal-split.js";
 import { invalidateGitBranch, invalidateGitStatus } from "./status-bar-git.js";
-
-type FixedEditorConfigListener = (config: FixedEditorRuntimeConfig) => void;
 
 type CopyText = (text: string) => Promise<void> | void;
 
 interface PieditorCompositionOptions {
-  copySelection?: CopyText;
   copyText?: CopyText;
 }
 
@@ -44,15 +24,6 @@ interface PieditorRuntime {
   activeEditor: EnhancedEditor | null;
   activeEditorTui: TUI | null;
   activeFooterData: ReadonlyFooterDataProvider | null;
-  activeFooterTui: TUI | null;
-  fixedEditorCompositor: TerminalSplitCompositor | null;
-  fixedEditorConfig: FixedEditorRuntimeConfig;
-  fixedEditorConfigListeners: Set<FixedEditorConfigListener>;
-  fixedEditorInstallFailed: boolean;
-  fixedSelectConfirmShim: FixedSelectConfirmShim | null;
-  originalConfirm: ExtensionContext["ui"]["confirm"] | null;
-  originalSelect: ExtensionContext["ui"]["select"] | null;
-  removeReplacementLeaseListener: (() => void) | null;
 }
 
 const GIT_BRANCH_PATTERNS = [
@@ -89,189 +60,15 @@ export function createPieditorComposition(
   pi: ExtensionAPI,
   options: PieditorCompositionOptions = {}
 ) {
-  const initialConfig = loadConfig();
   const runtime: PieditorRuntime = {
     activeContext: null,
     activeEditor: null,
     activeEditorTui: null,
     activeFooterData: null,
-    activeFooterTui: null,
-    fixedEditorCompositor: null,
-    fixedEditorConfig: initialConfig.fixedEditor,
-    fixedEditorConfigListeners: new Set(),
-    fixedEditorInstallFailed: false,
-    fixedSelectConfirmShim: null,
-    originalConfirm: null,
-    originalSelect: null,
-    removeReplacementLeaseListener: null,
   };
 
-  function emitFixedEditorConfigChanged(): void {
-    const config = runtime.fixedEditorConfig;
-    for (const listener of runtime.fixedEditorConfigListeners) {
-      listener(config);
-    }
-  }
-
-  function notifyFixedEditorInstallFailed(): void {
-    runtime.activeContext?.ui.notify(
-      "pieditor fixed-editor could not attach; using the normal editor",
-      "warning"
-    );
-  }
-
-  function disposeFixedEditorCompositor(): void {
-    runtime.fixedSelectConfirmShim?.cancelPendingPrompts();
-    attachReplacementLeaseCompositor(null);
-    attachAboveEditorLeaseCompositor(null);
-    runtime.fixedEditorCompositor?.dispose({
-      resetExtendedKeyboardModes: true,
-    });
-    runtime.fixedEditorCompositor = null;
-  }
-
-  function getShowHardwareCursor(): boolean {
-    return runtime.activeEditorTui?.getShowHardwareCursor() ?? false;
-  }
-
   function getCopyText(): CopyText {
-    return options.copyText ?? options.copySelection ?? copyToClipboard;
-  }
-
-  function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-  }
-
-  function copyFixedEditorSelection(text: string): void {
-    Promise.resolve(getCopyText()(text)).catch((error: unknown) => {
-      runtime.activeContext?.ui.notify(
-        `pieditor fixed-editor copy failed: ${getErrorMessage(error)}`,
-        "warning"
-      );
-    });
-  }
-
-  function installFixedEditorCompositor(): void {
-    if (!runtime.fixedEditorConfig.enabled) {
-      disposeFixedEditorCompositor();
-      runtime.fixedEditorInstallFailed = false;
-      return;
-    }
-
-    if (runtime.fixedEditorCompositor || runtime.fixedEditorInstallFailed) {
-      return;
-    }
-
-    const editor = runtime.activeEditor;
-    const tui = runtime.activeEditorTui;
-    const footerTui = runtime.activeFooterTui;
-    const terminal = tui?.terminal;
-    if (!(editor && tui && footerTui && terminal)) {
-      return;
-    }
-
-    let compositor: TerminalSplitCompositor | null = null;
-    try {
-      compositor = new TerminalSplitCompositor({
-        tui: tui as unknown as TuiLike,
-        terminal,
-        mouseScroll: runtime.fixedEditorConfig.mouseScroll,
-        scrollUpShortcuts: runtime.fixedEditorConfig.scrollUpShortcuts,
-        scrollDownShortcuts: runtime.fixedEditorConfig.scrollDownShortcuts,
-        onCopySelection: copyFixedEditorSelection,
-        getShowHardwareCursor,
-        renderCluster: (width, terminalRows) => {
-          const parts = editor.renderFixedEditorParts(width);
-          return renderFixedEditorCluster({
-            width,
-            terminalRows,
-            ...parts,
-          });
-        },
-      });
-
-      if (!compositor.install()) {
-        runtime.fixedEditorInstallFailed = true;
-        notifyFixedEditorInstallFailed();
-        return;
-      }
-
-      compositor.hideRenderable(editor);
-      runtime.fixedEditorCompositor = compositor;
-      attachReplacementLeaseCompositor(compositor);
-      attachAboveEditorLeaseCompositor(compositor);
-      tui.requestRender();
-    } catch {
-      compositor?.dispose({ resetExtendedKeyboardModes: true });
-      runtime.fixedEditorInstallFailed = true;
-      notifyFixedEditorInstallFailed();
-    }
-  }
-
-  function hasFixedEditorRefs(): boolean {
-    return Boolean(
-      runtime.activeEditor &&
-        runtime.activeEditorTui &&
-        runtime.activeFooterTui &&
-        runtime.activeEditorTui.terminal
-    );
-  }
-
-  function hasActiveReplacementSurfaceLease(): boolean {
-    return getActiveReplacementLeaseDiagnostics().length > 0;
-  }
-
-  function canUseFixedSelectConfirmShim(): boolean {
-    return (
-      runtime.fixedEditorCompositor?.canRenderAboveEditorSurface() === true &&
-      !hasActiveReplacementSurfaceLease()
-    );
-  }
-
-  function attachFixedSelectConfirmShim(ctx: ExtensionContext): void {
-    if (runtime.originalSelect && runtime.originalConfirm) {
-      return;
-    }
-
-    runtime.originalSelect = ctx.ui.select;
-    runtime.originalConfirm = ctx.ui.confirm;
-    const shim = new FixedSelectConfirmShim(
-      ctx.ui,
-      canUseFixedSelectConfirmShim,
-      runtime.originalSelect,
-      runtime.originalConfirm
-    );
-    runtime.fixedSelectConfirmShim = shim;
-    runtime.removeReplacementLeaseListener = onReplacementSurfaceLeaseChange(() => {
-      if (hasActiveReplacementSurfaceLease()) {
-        shim.cancelPendingPrompts();
-      }
-    });
-    ctx.ui.select = shim.select;
-    ctx.ui.confirm = shim.confirm;
-  }
-
-  function detachFixedSelectConfirmShim(): void {
-    if (runtime.activeContext && runtime.originalSelect && runtime.originalConfirm) {
-      runtime.activeContext.ui.select = runtime.originalSelect;
-      runtime.activeContext.ui.confirm = runtime.originalConfirm;
-    }
-    runtime.originalSelect = null;
-    runtime.originalConfirm = null;
-    runtime.fixedSelectConfirmShim = null;
-    runtime.removeReplacementLeaseListener?.();
-    runtime.removeReplacementLeaseListener = null;
-  }
-
-  function reconcileFixedEditorCompositor(): void {
-    if (!(runtime.fixedEditorConfig.enabled && hasFixedEditorRefs())) {
-      disposeFixedEditorCompositor();
-      runtime.activeEditorTui?.requestRender();
-      runtime.fixedEditorInstallFailed = false;
-      return;
-    }
-
-    installFixedEditorCompositor();
+    return options.copyText ?? copyToClipboard;
   }
 
   return {
@@ -281,13 +78,9 @@ export function createPieditorComposition(
       }
 
       runtime.activeContext = ctx;
-      attachFixedSelectConfirmShim(ctx);
       const config = loadConfig({
         onConfigError: (message) => ctx.ui.notify(message, "error"),
       });
-      runtime.fixedEditorConfig = config.fixedEditor;
-      runtime.fixedEditorInstallFailed = false;
-      emitFixedEditorConfigChanged();
       let warnedMissingDoubleEscapeCommand = false;
 
       const getDoubleEscapeCommand = () => {
@@ -310,71 +103,55 @@ export function createPieditorComposition(
         warnedMissingDoubleEscapeCommand = Boolean(
           commandState.command && !commandState.isVisible
         );
-
         return commandState.command;
       };
 
-      const factory = (
-        tui: TUI,
-        theme: EditorTheme,
-        keybindings: KeybindingsManager
-      ) => {
-        runtime.activeEditorTui = tui;
-        runtime.activeEditor = new EnhancedEditor(
-          tui,
-          theme,
-          keybindings,
-          ctx.ui,
-          {
-            onContinue: () => {
-              if (runtime.activeContext?.isIdle()) {
-                pi.sendUserMessage("continue");
-              } else {
-                pi.sendUserMessage("continue", { deliverAs: "followUp" });
-              }
-            },
-            getDoubleEscapeCommand,
-            canTriggerDoubleEscapeCommand: () => {
-              if (!runtime.activeContext) {
-                return false;
-              }
-              return (
-                runtime.activeContext.isIdle() &&
-                !runtime.activeContext.hasPendingMessages()
-              );
-            },
-            commandRemap: config.commandRemap,
-            doublePaste: config.doublePaste,
-            editorChrome: config.editorChrome,
-            statusBar: {
-              config: config.statusBar,
-              getContext: () => runtime.activeContext,
-              getFooterData: () => runtime.activeFooterData,
-            },
-          }
-        );
-        reconcileFixedEditorCompositor();
-        return runtime.activeEditor;
-      };
+      ctx.ui.setEditorComponent(
+        (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
+          runtime.activeEditorTui = tui;
+          runtime.activeEditor = new EnhancedEditor(
+            tui,
+            theme,
+            keybindings,
+            ctx.ui,
+            {
+              onContinue: () => {
+                if (runtime.activeContext?.isIdle()) {
+                  pi.sendUserMessage("continue");
+                } else {
+                  pi.sendUserMessage("continue", { deliverAs: "followUp" });
+                }
+              },
+              getDoubleEscapeCommand,
+              canTriggerDoubleEscapeCommand: () =>
+                Boolean(
+                  runtime.activeContext?.isIdle() &&
+                    !runtime.activeContext.hasPendingMessages()
+                ),
+              commandRemap: config.commandRemap,
+              doublePaste: config.doublePaste,
+              editorChrome: config.editorChrome,
+              statusBar: {
+                config: config.statusBar,
+                getContext: () => runtime.activeContext,
+                getFooterData: () => runtime.activeFooterData,
+              },
+            }
+          );
+          return runtime.activeEditor;
+        }
+      );
 
-      ctx.ui.setEditorComponent(factory);
       ctx.ui.setFooter(
         (tui: TUI, _theme: Theme, footerData: ReadonlyFooterDataProvider) => {
-          runtime.activeFooterTui = tui;
           runtime.activeFooterData = footerData;
-          reconcileFixedEditorCompositor();
           const unsub = footerData.onBranchChange(() => tui.requestRender());
-
           return {
             dispose() {
               unsub();
               if (runtime.activeFooterData === footerData) {
                 runtime.activeFooterData = null;
               }
-              if (runtime.activeFooterTui === tui) {
-                runtime.activeFooterTui = null;
-              }
-              reconcileFixedEditorCompositor();
             },
             invalidate() {
               // Footer data is pulled during EnhancedEditor.render().
@@ -393,16 +170,10 @@ export function createPieditorComposition(
 
     detachEditor(): void {
       runtime.activeEditor?.dispose();
-      clearAboveEditorSurfaceLeases();
-      clearReplacementSurfaceLeases();
-      disposeFixedEditorCompositor();
-      detachFixedSelectConfirmShim();
       runtime.activeContext = null;
       runtime.activeEditor = null;
       runtime.activeEditorTui = null;
       runtime.activeFooterData = null;
-      runtime.activeFooterTui = null;
-      runtime.fixedEditorInstallFailed = false;
     },
 
     handleToolResult(event: {
@@ -412,7 +183,6 @@ export function createPieditorComposition(
       if (event.toolName === "write" || event.toolName === "edit") {
         invalidateGitStatus();
       }
-
       if (event.toolName === "bash" && event.input?.command) {
         const command = String(event.input.command);
         if (mightChangeGitBranch(command)) {
@@ -427,42 +197,6 @@ export function createPieditorComposition(
       }
     },
 
-    handleMessageStart(event: { message?: { role?: unknown } }): void {
-      if (event.message?.role === "user") {
-        runtime.fixedEditorCompositor?.jumpToRootBottom();
-      }
-    },
-
-    handleInput(
-      event: Pick<InputEvent, "source">,
-      ctx: ExtensionContext
-    ): void {
-      if (event.source === "interactive" && !ctx.isIdle()) {
-        runtime.fixedEditorCompositor?.jumpToRootBottom();
-      }
-    },
-
-    getFixedEditorConfig(): FixedEditorRuntimeConfig {
-      return runtime.fixedEditorConfig;
-    },
-
-    setFixedEditorEnabled(enabled: boolean): void {
-      runtime.fixedEditorConfig = {
-        ...runtime.fixedEditorConfig,
-        enabled,
-      };
-      runtime.fixedEditorInstallFailed = false;
-      reconcileFixedEditorCompositor();
-      emitFixedEditorConfigChanged();
-    },
-
-    onFixedEditorConfigChange(listener: FixedEditorConfigListener): () => void {
-      runtime.fixedEditorConfigListeners.add(listener);
-      return () => {
-        runtime.fixedEditorConfigListeners.delete(listener);
-      };
-    },
-
     async pasteClipboardRaw(ctx: ExtensionContext): Promise<void> {
       if (!ctx.hasUI) {
         return;
@@ -475,13 +209,10 @@ export function createPieditorComposition(
     },
 
     async copyEditorBuffer(ctx: ExtensionContext): Promise<void> {
-      const tui = runtime.activeEditorTui as TuiLike | null;
       if (
         !ctx.hasUI ||
         !runtime.activeEditor ||
-        !tui ||
-        tui.hasOverlay?.() ||
-        hasActiveReplacementSurfaceLease()
+        runtime.activeEditorTui?.hasOverlay?.()
       ) {
         ctx.ui.notify("Editor not ready", "warning");
         return;
@@ -497,10 +228,8 @@ export function createPieditorComposition(
         await getCopyText()(text);
         ctx.ui.notify(`Copied ${text.length} characters from editor`, "info");
       } catch (error) {
-        ctx.ui.notify(
-          `Editor copy failed: ${getErrorMessage(error)}`,
-          "warning"
-        );
+        const message = error instanceof Error ? error.message : String(error);
+        ctx.ui.notify(`Editor copy failed: ${message}`, "warning");
       }
     },
   };

@@ -47,11 +47,6 @@ import {
   inspectDoublePaste,
 } from "./double-paste.js";
 
-export interface FixedEditorParts {
-  statusLines?: string[];
-  editorLines: string[];
-}
-
 interface EditorRenderCache {
   width: number;
   terminalRows: number;
@@ -522,7 +517,10 @@ export class EnhancedEditor extends CustomEditor {
     this.doubleSubmitContinue.dispose();
   }
 
-  renderFixedEditorParts(width: number): FixedEditorParts {
+  private renderWithChrome(width: number): {
+    statusLines?: string[];
+    editorLines: string[];
+  } {
     if (this.options.editorChrome.style === "amp" && width >= MIN_AMP_WIDTH) {
       const baseEditorLines = this.renderEditorLines(
         width - AMP_BODY_HORIZONTAL_CHROME_WIDTH
@@ -556,7 +554,7 @@ export class EnhancedEditor extends CustomEditor {
   }
 
   render(width: number): string[] {
-    const parts = this.renderFixedEditorParts(width);
+    const parts = this.renderWithChrome(width);
     return [...(parts.statusLines ?? []), ...parts.editorLines];
   }
 
