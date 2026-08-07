@@ -24,6 +24,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Propagate file-picker overlay focus to its search input for correct IME cursor positioning.
 - Scroll detached Pi fullscreen transcripts to the bottom when submitting a non-empty editor message.
 - Fall back to compact status-bar segment text when narrow status rows overflow.
 

@@ -1,6 +1,7 @@
 import * as path from "node:path";
 
 import {
+  type Focusable,
   Input,
   matchesKey,
   truncateToWidth,
@@ -47,7 +48,8 @@ import type {
 const TOP_LEVEL_REGEX_1 = /[a-zA-Z0-9]/;
 const TOP_LEVEL_REGEX_2 = /[/_.-]/;
 
-export class FileBrowserComponent {
+export class FileBrowserComponent implements Focusable {
+  private _focused = false;
   private readonly previewThemeMode: "dark" | "light";
   private readonly previewHighlightMode: PreviewHighlightMode;
   readonly width = 120;
@@ -91,7 +93,6 @@ export class FileBrowserComponent {
     this.currentDir = this.cwdRoot;
     this.selectedPaths = new Map();
     this.searchInput = new Input();
-    this.searchInput.focused = true;
     this.inGitRepo = isGitRepo(this.cwdRoot);
 
     this.options = [
@@ -116,6 +117,19 @@ export class FileBrowserComponent {
     ];
 
     this.rebuildFileLists();
+  }
+
+  get focused(): boolean {
+    return this._focused;
+  }
+
+  set focused(value: boolean) {
+    this._focused = value;
+    this.syncSearchInputFocus();
+  }
+
+  private syncSearchInputFocus(): void {
+    this.searchInput.focused = this._focused && !this.focusOnOptions;
   }
 
   private getOption(id: string): BrowserOption | undefined {
@@ -248,7 +262,7 @@ export class FileBrowserComponent {
       const visibleOptions = this.getVisibleOptions();
       if (visibleOptions.length > 0) {
         this.focusOnOptions = !this.focusOnOptions;
-        this.searchInput.focused = !this.focusOnOptions;
+        this.syncSearchInputFocus();
         if (this.focusOnOptions) {
           this.selectedOption = 0;
         }
@@ -269,7 +283,7 @@ export class FileBrowserComponent {
 
     if (matchesKey(data, "escape")) {
       this.focusOnOptions = false;
-      this.searchInput.focused = true;
+      this.syncSearchInputFocus();
       return;
     }
 

@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { CURSOR_MARKER } from "@earendil-works/pi-tui";
+
 import { FileBrowserComponent } from "./file-picker";
 
 type FileBrowserInternals = {
@@ -32,6 +34,29 @@ afterEach(() => {
 });
 
 describe("file picker keybindings", () => {
+  it("propagates overlay focus to the search input", () => {
+    const root = createTempDir();
+    writeFileSync(join(root, "alpha.txt"), "alpha", "utf8");
+    process.chdir(root);
+
+    const browser = new FileBrowserComponent(() => {
+      /* noop */
+    });
+
+    browser.focused = false;
+    expect(browser.render(120).join("\n")).not.toContain(CURSOR_MARKER);
+
+    browser.focused = true;
+    expect(browser.render(120).join("\n")).toContain(CURSOR_MARKER);
+
+    browser.handleInput("\u001b[Z");
+    expect(browser.render(120).join("\n")).not.toContain(CURSOR_MARKER);
+
+    browser.focused = false;
+    browser.handleInput("\u001b");
+    expect(browser.render(120).join("\n")).not.toContain(CURSOR_MARKER);
+  });
+
   it("treats ctrl+n like down in the browser list", () => {
     const root = createTempDir();
     writeFileSync(join(root, "alpha.txt"), "alpha", "utf8");
