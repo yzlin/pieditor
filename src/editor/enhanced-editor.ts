@@ -224,7 +224,24 @@ export class EnhancedEditor extends CustomEditor {
       get: (): ((text: string) => void) | undefined => this.submitHandler,
       set: (fn: ((text: string) => void) | undefined) => {
         this.submitHandler = fn
-          ? (text: string) => fn(remapCommand(text, this.options.commandRemap))
+          ? (text: string) => {
+              const remappedText = remapCommand(
+                text,
+                this.options.commandRemap
+              );
+              const tui = this.tuiInstance;
+              if (
+                text !== "" &&
+                tui.mode === "fullscreen" &&
+                "isFollowingOutput" in tui &&
+                tui.isFollowingOutput === false &&
+                "scrollToBottom" in tui &&
+                typeof tui.scrollToBottom === "function"
+              ) {
+                tui.scrollToBottom();
+              }
+              fn(remappedText);
+            }
           : undefined;
       },
       configurable: true,

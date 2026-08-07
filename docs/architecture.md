@@ -46,6 +46,7 @@ Owns:
 Editor behavior only.
 Owns:
 - submit interception and command remap
+- scrolling detached fullscreen transcripts to the bottom immediately before forwarding each non-empty remapped submit
 - double-escape timing/decision logic
 - configured-submit detection and double-submit continuation state/frame rendering
 - double-paste inspection/state and native marker confirmation through supported editor text APIs
@@ -124,7 +125,7 @@ Notes:
 
 - obsolete `fixedEditor` keys are ignored
 
-Pi `^0.84.0` is the minimum supported host. Pi owns regular/fullscreen rendering and TUI mode selection. Users choose official fullscreen through `/settings` or `--tui-mode fullscreen`; pieditor neither forces nor migrates that setting.
+Pi `^0.84.0` is the minimum supported host. Pi owns regular/fullscreen viewport composition and TUI mode selection. Users choose official fullscreen through `/settings` or `--tui-mode fullscreen`; pieditor neither forces nor migrates that setting.
 
 ## Native preview fallback
 

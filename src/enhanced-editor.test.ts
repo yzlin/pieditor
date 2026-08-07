@@ -47,9 +47,17 @@ function createEditor(
     notifications?: Array<{ message: string; level: string | undefined }>;
     onNotify?: (message: string, level?: string) => void;
     onRequestRender?: () => void;
+    tuiMode?: "regular" | "fullscreen";
+    isFollowingOutput?: boolean;
+    onScrollToBottom?: () => void;
   }
 ) {
   const tui = {
+    mode: options?.tuiMode ?? "regular",
+    isFollowingOutput: options?.isFollowingOutput,
+    scrollToBottom() {
+      options?.onScrollToBottom?.();
+    },
     requestRender() {
       options?.onRequestRender?.();
     },
@@ -549,6 +557,44 @@ describe("EnhancedEditor double paste", () => {
 });
 
 describe("EnhancedEditor command remap", () => {
+  it("scrolls detached fullscreen output before forwarding remapped text", () => {
+    const events: string[] = [];
+    const editor = createEditor({ tree: "anycopy" }, {
+      tuiMode: "fullscreen",
+      isFollowingOutput: false,
+      onScrollToBottom: () => events.push("scroll"),
+    });
+    editor.onSubmit = (text) => events.push(`submit:${text}`);
+    editor.setText("/tree");
+
+    editorInternals(editor).submitValue();
+
+    expect(events).toEqual(["scroll", "submit:/anycopy"]);
+  });
+
+  it.each([
+    ["fullscreen output that is already following", "fullscreen", true, "prompt"],
+    ["regular mode", "regular", false, "prompt"],
+    ["empty input", "fullscreen", false, ""],
+  ] as const)(
+    "does not scroll for %s",
+    (_scenario, tuiMode, isFollowingOutput, text) => {
+      let scrolls = 0;
+      const editor = createEditor({}, {
+        tuiMode,
+        isFollowingOutput,
+        onScrollToBottom: () => {
+          scrolls += 1;
+        },
+      });
+      editor.onSubmit = () => undefined;
+
+      editor.onSubmit?.(text);
+
+      expect(scrolls).toBe(0);
+    }
+  );
+
   it("remaps slash commands on direct onSubmit invocation", () => {
     const editor = createEditor({ tree: "anycopy" });
     let submitted = "";
