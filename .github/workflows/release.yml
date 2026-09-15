@@ -36,8 +36,8 @@ jobs:
         id: release
         run: node scripts/prepare-release.mjs
 
-      - name: Build package
-        run: bun run build
+      - name: Typecheck package
+        run: bun run typecheck
 
       - name: Verify npm package contents
         run: npm pack --dry-run

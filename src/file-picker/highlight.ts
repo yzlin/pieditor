@@ -61,7 +61,7 @@ function parsePreviewLine(line: string): ParsedPreviewLine | null {
 }
 
 function getNativeBindingModuleSpecifiers(): string[] {
-  return ["../native/syntect-picker-preview/index.js", "../../native/syntect-picker-preview/index.js"];
+  return ["../../native/syntect-picker-preview/index.js"];
 }
 
 function defaultLoadNativeBinding(): NativeHighlightBinding | null {

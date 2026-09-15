@@ -16,7 +16,7 @@ Current user-facing feature areas include:
 
 ## Domain model
 
-- **Pi extension package**: npm package `@yzlin/pieditor`, loaded by Pi from `dist/index.js` after build.
+- **Pi extension package**: npm package `@yzlin/pieditor`; Pi and package consumers load its TypeScript source entry `src/index.ts`, so runtimes must support TypeScript modules.
 - **Composite editor**: one owner for Pi's custom editor surface, implemented so feature areas do not compete over `setEditorComponent()`.
 - **Composition runtime**: wiring layer that attaches the enhanced editor, footer listener, preview highlighter warmup, git invalidation, and copy-editor behavior.
 - **Editor feature modules**: editor behavior, file picker, shell completions, status bar, and configuration readers live under `src/`.

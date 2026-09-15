@@ -8,19 +8,21 @@
     "url": "https://github.com/yzlin/pieditor"
   },
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./types/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./types/index.d.ts",
-      "import": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
     },
-    "./schema": "./schema/configuration_schema.json"
+    "./schema": "./configuration_schema.json"
   },
   "files": [
-    "dist",
-    "types",
-    "schema",
+    "src",
+    "native/syntect-picker-preview/index.js",
+    "native/syntect-picker-preview/index.d.ts",
+    "native/syntect-picker-preview/package.json",
+    "native/syntect-picker-preview/*.node",
     "configuration_schema.json",
     "config.json.example",
     "docs",
@@ -29,15 +31,14 @@
   ],
   "pi": {
     "extensions": [
-      "./dist/index.js"
+      "./src/index.ts"
     ],
-    "configuration": "./schema/configuration_schema.json"
+    "configuration": "./configuration_schema.json"
   },
   "scripts": {
-    "build": "bun run clean && tsc -p tsconfig.json && bun run scripts/copy-assets.mjs",
     "build:syntect-picker-preview": "node native/syntect-picker-preview/scripts/build.mjs",
     "check": "biome check .",
-    "clean": "rm -rf dist types schema"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "^0.84.0",

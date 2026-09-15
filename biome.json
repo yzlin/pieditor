@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!types", "!schema", "!native/**/*.node"]
+    "includes": ["**", "!native/**/*.node"]
   },
   "formatter": {
     "enabled": false,

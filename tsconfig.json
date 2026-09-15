@@ -6,16 +6,12 @@
     "lib": ["ES2022"],
     "types": ["bun"],
     "strict": true,
-    "declaration": true,
-    "declarationDir": "types",
-    "outDir": "dist",
+    "noEmit": true,
     "rootDir": "src",
-    "sourceMap": false,
-    "declarationMap": false,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "dist", "types", "node_modules"]
+  "exclude": ["src/**/*.test.ts", "node_modules"]
 }

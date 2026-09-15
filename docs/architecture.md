@@ -26,11 +26,25 @@ Current feature areas:
 ## Ownership boundaries
 
 ### `src/index.ts`
-Thin extension entrypoint.
+Thin Pi extension entrypoint.
 Owns:
 - Pi event registration
 - shortcut registration
 - delegation into composition runtime
+
+## Package entrypoints and runtime assets
+
+The package has one source-only entrypoint contract. Pi loads `pi.extensions[0]`, and package consumers import the public export, from `./src/index.ts`. Loading TypeScript source through Pi's host loader keeps imports of Pi host packages on that loader's alias path, so `EnhancedEditor` extends the host's own `Editor` class rather than a second package instance. Consumers must use a runtime or loader that supports TypeScript modules; the package does not ship compiled JavaScript or generated declarations.
+
+Runtime shell completion scripts ship under `src/shell/scripts/`. The package also includes the optional native preview loader files, any available platform `.node` prebuild, and the root `configuration_schema.json` used by both the schema export and Pi configuration declaration.
+
+Validate a packed artifact against a real Pi host loader with:
+
+```bash
+node scripts/test-packed-host-identity.mjs /path/to/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js
+```
+
+This test packs and extracts the package, checks the source-only exports and runtime assets, loads the Pi declaration through the supplied host loader, and verifies the created `EnhancedEditor` shares the host `Editor` identity. It creates a temporary `pieditor-packed-identity-*` directory under the operating-system temp directory and reports no live TUI behavior.
 
 ### `src/composition.ts`
 Runtime wiring boundary.

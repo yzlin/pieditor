@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - Require Node.js 24 or newer for package consumers.
 - Require Pi `^0.84.0`; Pi 0.80 through 0.83 are no longer supported.
 - Remove the `@yzlin/pieditor/replacement-surface-lease` package export; consumers must remove that integration.
+- Publish a source-only package: public imports and types now resolve to `src/index.ts`, requiring consumer runtime TypeScript support; compiled `dist`, generated `types`, and copied `schema` outputs are no longer shipped.
 
 ### Added
 
@@ -24,6 +25,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Load pieditor's Pi extension from packaged TypeScript source so its editor shares the host Pi `Editor` identity.
 - Propagate file-picker overlay focus to its search input for correct IME cursor positioning.
 - Scroll detached Pi fullscreen transcripts to the bottom when submitting a non-empty editor message.
 - Fall back to compact status-bar segment text when narrow status rows overflow.
