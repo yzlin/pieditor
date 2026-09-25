@@ -22,10 +22,11 @@ const ANSI_ESCAPE_PATTERN = new RegExp(
   "g"
 );
 const HORIZONTAL_BORDER_PATTERN = /^─+$/u;
-const SCROLL_BORDER_PATTERN = /^─── [↑↓] \d+ more /u;
-const TOP_SCROLL_BORDER_PATTERN = /^─── ↑ \d+ more /u;
-const BOTTOM_SCROLL_BORDER_PATTERN = /^─── ↓ \d+ more /u;
-const TRAILING_BORDER_PATTERN = /─+$/u;
+const FULL_SCROLL_BORDER_PATTERN = /^─+ ([↑↓]) \d+ more ─*$/u;
+const TRUNCATED_SCROLL_BORDER_PATTERN =
+  /^─── ([↑↓])(?: \d+(?: m(?:o(?:r(?:e)?)?)?)?)? ?\.{3}$/u;
+
+type ScrollDirection = "↑" | "↓";
 
 function hasAnsi(value: string): boolean {
   return value.includes(String.fromCharCode(27));
@@ -35,10 +36,18 @@ function stripAnsi(value: string): string {
   return value.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
-function isBorderLine(value: string): boolean {
+function getScrollBorderDirection(value: string): ScrollDirection | null {
   const plain = stripAnsi(value);
+  const direction =
+    FULL_SCROLL_BORDER_PATTERN.exec(plain)?.[1] ??
+    TRUNCATED_SCROLL_BORDER_PATTERN.exec(plain)?.[1];
+  return direction === "↑" || direction === "↓" ? direction : null;
+}
+
+function isBorderLine(value: string): boolean {
   return (
-    HORIZONTAL_BORDER_PATTERN.test(plain) || SCROLL_BORDER_PATTERN.test(plain)
+    HORIZONTAL_BORDER_PATTERN.test(stripAnsi(value)) ||
+    getScrollBorderDirection(value) !== null
   );
 }
 
@@ -67,17 +76,8 @@ function renderTopBorder(options: {
   leftContent: string;
   rightContent: string;
   borderColor: (value: string) => string;
-  colorLeftContent?: boolean;
-  colorRightContent?: boolean;
 }): string {
-  const {
-    width,
-    leftContent,
-    rightContent,
-    borderColor,
-    colorLeftContent = false,
-    colorRightContent = false,
-  } = options;
+  const { width, leftContent, rightContent, borderColor } = options;
   const innerWidth = width - 2;
   if (!(leftContent || rightContent)) {
     return `${borderColor("╭")}${borderColor("─".repeat(innerWidth))}${borderColor("╮")}`;
@@ -101,16 +101,13 @@ function renderTopBorder(options: {
     0,
     innerWidth - visibleWidth(left) - visibleWidth(right)
   );
-  const renderedLeft = colorLeftContent ? borderColor(left) : left;
-  const renderedRight = colorRightContent ? borderColor(right) : right;
-  return `${borderColor("╭")}${renderedLeft}${borderColor("─".repeat(fillWidth))}${renderedRight}${borderColor("╮")}`;
+  return `${borderColor("╭")}${left}${borderColor("─".repeat(fillWidth))}${right}${borderColor("╮")}`;
 }
 
 function renderBottomBorder(
   width: number,
   content: string,
-  borderColor: (value: string) => string,
-  colorContent = false
+  borderColor: (value: string) => string
 ): string {
   const innerWidth = width - 2;
   if (!content) {
@@ -120,9 +117,7 @@ function renderBottomBorder(
   const label = truncateVisible(content, innerWidth);
   const labelWidth = visibleWidth(label);
   const border = "─".repeat(Math.max(0, innerWidth - labelWidth));
-  return `${borderColor("╰")}${borderColor(border)}${
-    colorContent ? borderColor(label) : label
-  }${borderColor("╯")}`;
+  return `${borderColor("╰")}${borderColor(border)}${label}${borderColor("╯")}`;
 }
 
 function renderBodyLine(
@@ -132,6 +127,23 @@ function renderBodyLine(
 ): string {
   const contentWidth = width - 4;
   return `${borderColor("│")} ${fitVisible(line, contentWidth)} ${borderColor("│")}`;
+}
+
+function renderScrollBorder(
+  width: number,
+  nativeBorder: string,
+  position: "top" | "bottom",
+  borderColor: (value: string) => string
+): string {
+  const innerWidth = width - 2;
+  const content = truncateVisible(nativeBorder, innerWidth);
+  const fillWidth = Math.max(0, innerWidth - visibleWidth(content));
+  const leftFill = "─".repeat(Math.floor(fillWidth / 2));
+  const rightFill = "─".repeat(fillWidth - leftFill.length);
+  const leftCorner = position === "top" ? "╭" : "╰";
+  const rightCorner = position === "top" ? "╮" : "╯";
+
+  return `${borderColor(leftCorner)}${leftFill ? borderColor(leftFill) : ""}${borderColor(content)}${rightFill ? borderColor(rightFill) : ""}${borderColor(rightCorner)}`;
 }
 
 export function renderAmpEditorChrome({
@@ -155,16 +167,10 @@ export function renderAmpEditorChrome({
   }
 
   const bottomNativeBorder = stripAnsi(editorLines[bottomIndex] ?? "");
-  const hasTopScrollIndicator = TOP_SCROLL_BORDER_PATTERN.test(topNativeBorder);
+  const hasTopScrollIndicator =
+    getScrollBorderDirection(topNativeBorder) === "↑";
   const hasBottomScrollIndicator =
-    BOTTOM_SCROLL_BORDER_PATTERN.test(bottomNativeBorder);
-  const topLeftContent = hasTopScrollIndicator
-    ? topNativeBorder.replace(TRAILING_BORDER_PATTERN, "")
-    : labels.topLeftContent;
-  const topRightContent = hasTopScrollIndicator ? "" : labels.topRightContent;
-  const bottomContent = hasBottomScrollIndicator
-    ? bottomNativeBorder.replace(TRAILING_BORDER_PATTERN, "")
-    : labels.bottomContent;
+    getScrollBorderDirection(bottomNativeBorder) === "↓";
 
   const body = editorLines.slice(1, bottomIndex);
   const popup = editorLines.slice(bottomIndex + 1);
@@ -174,20 +180,18 @@ export function renderAmpEditorChrome({
   }
 
   return [
-    renderTopBorder({
-      width,
-      leftContent: topLeftContent,
-      rightContent: topRightContent,
-      borderColor,
-      colorLeftContent: hasTopScrollIndicator,
-    }),
+    hasTopScrollIndicator
+      ? renderScrollBorder(width, topNativeBorder, "top", borderColor)
+      : renderTopBorder({
+          width,
+          leftContent: labels.topLeftContent,
+          rightContent: labels.topRightContent,
+          borderColor,
+        }),
     ...paddedBody.map((line) => renderBodyLine(line, width, borderColor)),
-    renderBottomBorder(
-      width,
-      bottomContent,
-      borderColor,
-      hasBottomScrollIndicator
-    ),
+    hasBottomScrollIndicator
+      ? renderScrollBorder(width, bottomNativeBorder, "bottom", borderColor)
+      : renderBottomBorder(width, labels.bottomContent, borderColor),
     ...popup,
   ];
 }

@@ -10,16 +10,6 @@ import { renderAmpEditorChrome } from "./editor/amp-chrome";
 import { matchesInterrupt } from "./editor/double-escape";
 import { EnhancedEditor } from "./enhanced-editor";
 
-const ESC = String.fromCharCode(27);
-const TOP_SCROLL_COLOR_PATTERN = new RegExp(
-  `${ESC}\\[2m─── ↑ 2 more\\s+${ESC}\\[0m`,
-  "u"
-);
-const BOTTOM_SCROLL_COLOR_PATTERN = new RegExp(
-  `${ESC}\\[2m─── ↓ 3 more\\s+${ESC}\\[0m`,
-  "u"
-);
-
 type EditorInternals = {
   submitValue(): void;
   autocompleteProvider: AutocompleteProvider;
@@ -899,11 +889,68 @@ describe("EnhancedEditor command remap", () => {
       borderColor: color,
     });
 
-    expect(lines[0]).toMatch(TOP_SCROLL_COLOR_PATTERN);
+    expect(lines[0]).toContain(color("─── ↑ 2 more ─────────"));
     expect(lines[0]).not.toContain("top");
     expect(lines[0]).not.toContain("right");
-    expect(lines[2]).toMatch(BOTTOM_SCROLL_COLOR_PATTERN);
+    expect(lines[2]).toContain(color("─── ↓ 3 more ─────────"));
     expect(lines[2]).not.toContain("bottom");
+  });
+
+  it("boxes centered native scroll borders from current Pi hosts", () => {
+    const lines = renderAmpEditorChrome({
+      width: 24,
+      editorLines: [
+        "───── ↑ 2 more ─────",
+        "body",
+        "───── ↓ 3 more ─────",
+      ],
+      labels: {
+        topLeftContent: "top",
+        topRightContent: "right",
+        bottomContent: "bottom",
+      },
+      minBodyHeight: 1,
+    });
+
+    expect(lines[0]).toBe("╭────── ↑ 2 more ──────╮");
+    expect(lines[1]).toStartWith("│ body");
+    expect(lines[1]).toEndWith(" │");
+    expect(lines[2]).toBe("╰────── ↓ 3 more ──────╯");
+  });
+
+  it("boxes truncated native scroll borders at narrow Amp widths", () => {
+    const lines = renderAmpEditorChrome({
+      width: 17,
+      editorLines: ["─────────────", "body", "─── ↓ 13 m..."],
+      labels: {
+        topLeftContent: "",
+        topRightContent: "",
+        bottomContent: "bottom",
+      },
+      minBodyHeight: 1,
+    });
+
+    expect(lines).toEqual([
+      "╭───────────────╮",
+      "│ body          │",
+      "╰──── ↓ 13 m...─╯",
+    ]);
+  });
+
+  it("does not classify arbitrary text after a truncated scroll shape as a border", () => {
+    const editorLines = ["─────────────", "body", "─── ↓ 13 m... text"];
+
+    expect(
+      renderAmpEditorChrome({
+        width: 17,
+        editorLines,
+        labels: {
+          topLeftContent: "",
+          topRightContent: "",
+          bottomContent: "bottom",
+        },
+      })
+    ).toBe(editorLines);
   });
 
   it("uses Amp chrome in EnhancedEditor when configured", () => {
