@@ -56,6 +56,10 @@ function formatTokens(n: number): string {
   return `${Math.round(n / 1_000_000)}M`;
 }
 
+function formatTokensPerSecond(tps: number): string {
+  return tps < 10 ? tps.toFixed(1) : Math.round(tps).toString();
+}
+
 function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -451,6 +455,40 @@ const tokenTotalSegment: StatusBarSegment = {
   },
 };
 
+const tpsSegment: StatusBarSegment = {
+  id: "tps",
+  render(ctx) {
+    const icons = getIcons();
+    if (!ctx.tokensPerSecond) {
+      return { content: "", visible: false };
+    }
+    return {
+      content: color(
+        ctx,
+        "tokens",
+        withIcon(
+          icons.speed,
+          `${formatTokensPerSecond(ctx.tokensPerSecond)} tok/s`
+        )
+      ),
+      visible: true,
+    };
+  },
+  renderCompact(ctx) {
+    if (!ctx.tokensPerSecond) {
+      return { content: "", visible: false };
+    }
+    return {
+      content: color(
+        ctx,
+        "tokens",
+        `${formatTokensPerSecond(ctx.tokensPerSecond)}t/s`
+      ),
+      visible: true,
+    };
+  },
+};
+
 const costSegment: StatusBarSegment = {
   id: "cost",
   render(ctx) {
@@ -711,6 +749,7 @@ const SEGMENTS: Record<StatusBarSegmentId, StatusBarSegment> = {
   token_in: tokenInSegment,
   token_out: tokenOutSegment,
   token_total: tokenTotalSegment,
+  tps: tpsSegment,
   cost: costSegment,
   context_pct: contextPctSegment,
   context_total: contextTotalSegment,

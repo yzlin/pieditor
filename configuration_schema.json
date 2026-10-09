@@ -115,6 +115,7 @@
         "token_in",
         "token_out",
         "token_total",
+        "tps",
         "cost",
         "context_pct",
         "context_total",

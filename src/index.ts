@@ -39,6 +39,18 @@ export default function (pi: ExtensionAPI): void {
     composition.handleToolResult(event);
   });
 
+  pi.on("message_start", (event) => {
+    composition.handleMessageStart(event);
+  });
+
+  pi.on("message_update", (event) => {
+    composition.handleMessageUpdate(event);
+  });
+
+  pi.on("message_end", (event) => {
+    composition.handleMessageEnd(event);
+  });
+
   pi.on("user_bash", (event) => {
     composition.handleUserBash(event.command);
   });

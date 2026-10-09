@@ -11,6 +11,7 @@ import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { loadConfig } from "./config.js";
 import { EnhancedEditor } from "./enhanced-editor.js";
 import { warmPreviewHighlighter } from "./file-picker-highlight.js";
+import { TokensPerSecondTracker } from "./status-bar/tps.js";
 import { invalidateGitBranch, invalidateGitStatus } from "./status-bar-git.js";
 
 type CopyText = (text: string) => Promise<void> | void;
@@ -66,6 +67,7 @@ export function createPieditorComposition(
     activeEditorTui: null,
     activeFooterData: null,
   };
+  const tpsTracker = new TokensPerSecondTracker();
 
   function getCopyText(): CopyText {
     return options.copyText ?? copyToClipboard;
@@ -78,6 +80,7 @@ export function createPieditorComposition(
       }
 
       runtime.activeContext = ctx;
+      tpsTracker.reset();
       const config = loadConfig({
         onConfigError: (message) => ctx.ui.notify(message, "error"),
       });
@@ -135,6 +138,7 @@ export function createPieditorComposition(
                 config: config.statusBar,
                 getContext: () => runtime.activeContext,
                 getFooterData: () => runtime.activeFooterData,
+                getTokensPerSecond: () => tpsTracker.getTokensPerSecond(),
               },
             }
           );
@@ -189,6 +193,24 @@ export function createPieditorComposition(
           invalidateGitState();
         }
       }
+    },
+
+    handleMessageStart(event: { message: { role: string } }): void {
+      tpsTracker.handleMessageStart(event.message);
+    },
+
+    handleMessageUpdate(event: {
+      message: { role: string };
+      assistantMessageEvent: { type: string };
+    }): void {
+      tpsTracker.handleMessageUpdate(
+        event.message,
+        event.assistantMessageEvent
+      );
+    },
+
+    handleMessageEnd(event: { message: { role: string } }): void {
+      tpsTracker.handleMessageEnd(event.message);
     },
 
     handleUserBash(command: string): void {

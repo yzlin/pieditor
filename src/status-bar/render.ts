@@ -327,7 +327,8 @@ export function buildStatusBarContext(
   footerData: ReadonlyFooterDataProvider | null,
   presetDef: StatusBarPresetDef,
   sessionStartTime: number,
-  theme: Theme
+  theme: Theme,
+  tokensPerSecond: number | null = null
 ): StatusBarContext {
   const colors: ColorScheme = presetDef.colors ?? getDefaultColors();
   const { usageStats, thinkingLevel } = collectUsageStats(ctx);
@@ -360,6 +361,7 @@ export function buildStatusBarContext(
     thinkingLevel,
     sessionId: ctx.sessionManager?.getSessionId?.(),
     usageStats,
+    tokensPerSecond,
     contextPercent,
     contextWindow,
     usingSubscription,
@@ -379,9 +381,18 @@ export function buildAmpStatusLayout(options: {
   config: StatusBarRuntimeConfig;
   sessionStartTime: number;
   theme: Theme;
+  tokensPerSecond?: number | null;
   width?: number;
 }): AmpStatusLayout {
-  const { ctx, footerData, config, sessionStartTime, theme, width } = options;
+  const {
+    ctx,
+    footerData,
+    config,
+    sessionStartTime,
+    theme,
+    tokensPerSecond,
+    width,
+  } = options;
   if (!(config.enabled && ctx)) {
     return { topLeftContent: "", topRightContent: "", bottomContent: "" };
   }
@@ -392,7 +403,8 @@ export function buildAmpStatusLayout(options: {
     footerData,
     presetDef,
     sessionStartTime,
-    theme
+    theme,
+    tokensPerSecond
   );
   const topLeftSegmentIds = presetDef.leftSegments.filter(
     (segId) => !AMP_BOTTOM_SEGMENTS.has(segId)
@@ -455,15 +467,25 @@ export function renderStatusBarLine(options: {
   config: StatusBarRuntimeConfig;
   sessionStartTime: number;
   theme: Theme;
+  tokensPerSecond?: number | null;
 }): string {
-  const { width, ctx, footerData, config, sessionStartTime, theme } = options;
+  const {
+    width,
+    ctx,
+    footerData,
+    config,
+    sessionStartTime,
+    theme,
+    tokensPerSecond,
+  } = options;
   const presetDef = resolveStatusBarPresetDef(config);
   const statusBarContext = buildStatusBarContext(
     ctx,
     footerData,
     presetDef,
     sessionStartTime,
-    theme
+    theme,
+    tokensPerSecond
   );
   const content = computeRowContent(
     statusBarContext,

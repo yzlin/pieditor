@@ -16,6 +16,7 @@ interface IconSet {
   cache: string;
   input: string;
   output: string;
+  speed: string;
   host: string;
   session: string;
 }
@@ -65,6 +66,7 @@ const NERD_ICONS: IconSet = {
   cache: "\uF021",
   input: "\uF063",
   output: "\uF062",
+  speed: "\uF0E4",
   host: "\uF108",
   session: "\uF550",
 };
@@ -82,6 +84,7 @@ const ASCII_ICONS: IconSet = {
   cache: "⟳",
   input: "↙",
   output: "↗",
+  speed: "»",
   host: "@",
   session: "◇",
 };

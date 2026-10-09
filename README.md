@@ -130,6 +130,7 @@ Then add the rest of your config fields:
     | `token_in` | `↙ 1.2k` | Input token count. Hidden when zero. |
     | `token_out` | `↗ 830` | Output token count. Hidden when zero. |
     | `token_total` | `◎ 2.0k` | Total token count across input, output, cache read, and cache write. Hidden when zero. |
+    | `tps` | `» 42 tok/s` | Output tokens per second for the last completed assistant message, timed from first streamed token to message end. Hidden until a message completes; reset on session start. |
     | `cost` | `$0.03` or `(sub)` | Session cost, or subscription marker when the model uses OAuth. Hidden when neither applies. |
     | `context_pct` | `◫ 42.0%/200k` | Context usage percent plus context window size. Warn/error colors apply above 70%/90%. Hidden when context size is unknown. |
     | `context_total` | `◫ 200k` | Context window size. Hidden when unknown. |

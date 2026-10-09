@@ -67,6 +67,7 @@ interface EnhancedEditorOptions {
     config: StatusBarRuntimeConfig;
     getContext: () => ExtensionContext | null;
     getFooterData: () => ReadonlyFooterDataProvider | null;
+    getTokensPerSecond: () => number | null;
   };
 }
 
@@ -619,6 +620,7 @@ export class EnhancedEditor extends CustomEditor {
       config: this.options.statusBar.config,
       sessionStartTime: this.sessionStartTime,
       theme: this.ui.theme,
+      tokensPerSecond: this.options.statusBar.getTokensPerSecond(),
       width,
     });
   }
@@ -647,6 +649,7 @@ export class EnhancedEditor extends CustomEditor {
       config: this.options.statusBar.config,
       sessionStartTime: this.sessionStartTime,
       theme: this.ui.theme,
+      tokensPerSecond: this.options.statusBar.getTokensPerSecond(),
     });
   }
 }

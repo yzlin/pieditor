@@ -29,6 +29,7 @@ export const STATUS_BAR_SEGMENT_IDS = [
   "token_in",
   "token_out",
   "token_total",
+  "tps",
   "cost",
   "context_pct",
   "context_total",
@@ -124,6 +125,7 @@ export interface StatusBarContext {
   thinkingLevel: string;
   sessionId: string | undefined;
   usageStats: UsageStats;
+  tokensPerSecond: number | null;
   contextPercent: number;
   contextWindow: number;
   usingSubscription: boolean;

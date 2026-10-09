@@ -106,6 +106,7 @@ function createEditor(
       },
       getContext: () => options?.statusBarContext ?? null,
       getFooterData: () => options?.statusBarFooterData ?? null,
+      getTokensPerSecond: () => null,
     },
   });
 }

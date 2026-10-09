@@ -101,6 +101,7 @@ export const STATUS_BAR_PRESETS: Record<
     rightSegments: [
       "token_in",
       "token_out",
+      "tps",
       "cache_read",
       "cost",
       "context_pct",
@@ -136,6 +137,7 @@ export const STATUS_BAR_PRESETS: Record<
     rightSegments: [
       "token_in",
       "token_out",
+      "tps",
       "cache_read",
       "cache_write",
       "cost",
