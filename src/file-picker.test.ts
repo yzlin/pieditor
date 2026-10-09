@@ -6,11 +6,7 @@ import { join } from "node:path";
 import { initTheme } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
-import {
-  FileBrowserComponent,
-  highlightPreviewLine,
-  truncateVisibleText,
-} from "./file-picker";
+import { FileBrowserComponent, highlightPreviewLine, truncateVisibleText } from "./file-picker";
 
 initTheme("dark");
 
@@ -47,15 +43,13 @@ describe("file picker preview rendering", () => {
   });
 
   it("leaves non-code preview rows unchanged", () => {
-    expect(highlightPreviewLine("… preview truncated", previewPath)).toBe(
-      "… preview truncated"
-    );
+    expect(highlightPreviewLine("… preview truncated", previewPath)).toBe("… preview truncated");
   });
 
   it("truncates highlighted preview lines with ANSI-safe width handling", () => {
     const highlighted = highlightPreviewLine(
       " 1 │ const extraordinarilyLongIdentifier = 42;",
-      previewPath
+      previewPath,
     );
 
     const truncated = truncateVisibleText(highlighted, 16);
@@ -101,7 +95,7 @@ describe("file picker folder rendering", () => {
       undefined,
       "dark",
       undefined,
-      (text) => `<border:${text}>`
+      (text) => `<border:${text}>`,
     );
 
     const rendered = browser.render(120).join("\n");

@@ -59,16 +59,9 @@ export const STATUS_BAR_SEPARATOR_STYLES = [
   "star",
 ] as const;
 
-export type StatusBarSeparatorStyle =
-  (typeof STATUS_BAR_SEPARATOR_STYLES)[number];
+export type StatusBarSeparatorStyle = (typeof STATUS_BAR_SEPARATOR_STYLES)[number];
 
-export type StatusBarPreset =
-  | "default"
-  | "minimal"
-  | "compact"
-  | "full"
-  | "nerd"
-  | "ascii";
+export type StatusBarPreset = "default" | "minimal" | "compact" | "full" | "nerd" | "ascii";
 
 export interface StatusBarSegmentOptions {
   model?: { showThinkingLevel?: boolean };
@@ -93,8 +86,7 @@ export interface StatusBarPresetDef {
   colors?: ColorScheme;
 }
 
-export interface BuiltinStatusBarPresetDef
-  extends Omit<StatusBarPresetDef, "separator"> {
+export interface BuiltinStatusBarPresetDef extends Omit<StatusBarPresetDef, "separator"> {
   separator: StatusBarSeparatorStyle;
 }
 
@@ -119,9 +111,7 @@ export interface UsageStats {
 }
 
 export interface StatusBarContext {
-  model:
-    | { id: string; name?: string; reasoning?: boolean; contextWindow?: number }
-    | undefined;
+  model: { id: string; name?: string; reasoning?: boolean; contextWindow?: number } | undefined;
   thinkingLevel: string;
   sessionId: string | undefined;
   usageStats: UsageStats;

@@ -23,12 +23,8 @@ beforeAll(() => {
   initTheme("dark");
 });
 
-type EditorFactory = NonNullable<
-  Parameters<ExtensionUIContext["setEditorComponent"]>[0]
->;
-type FooterFactory = NonNullable<
-  Parameters<ExtensionUIContext["setFooter"]>[0]
->;
+type EditorFactory = NonNullable<Parameters<ExtensionUIContext["setEditorComponent"]>[0]>;
+type FooterFactory = NonNullable<Parameters<ExtensionUIContext["setFooter"]>[0]>;
 
 interface HarnessOptions {
   terminalRows?: number;
@@ -48,11 +44,9 @@ interface MockTui {
   render: (width: number) => string[];
   doRender: () => void;
   addInputListener: (
-    listener: (data: string) => { consume?: boolean; data?: string } | undefined
+    listener: (data: string) => { consume?: boolean; data?: string } | undefined,
   ) => () => void;
-  listeners: Array<
-    (data: string) => { consume?: boolean; data?: string } | undefined
-  >;
+  listeners: Array<(data: string) => { consume?: boolean; data?: string } | undefined>;
   requestRender: () => void;
   getShowHardwareCursor: () => boolean;
   hasOverlay: () => boolean;
@@ -61,7 +55,7 @@ interface MockTui {
     overlayLine: string,
     startCol: number,
     overlayWidth: number,
-    totalWidth: number
+    totalWidth: number,
   ) => string;
   requestRenderCount: number;
 }
@@ -81,14 +75,12 @@ function writePieditorConfig(homeDir: string): void {
       filePicker: { previewHighlightMode: "builtin" },
       statusBar: { enabled: false },
     }),
-    "utf-8"
+    "utf-8",
   );
 }
 
 function createMockTui(options: HarnessOptions): MockTui {
-  const listeners: Array<
-    (data: string) => { consume?: boolean; data?: string } | undefined
-  > = [];
+  const listeners: Array<(data: string) => { consume?: boolean; data?: string } | undefined> = [];
 
   return {
     terminal: {
@@ -138,8 +130,7 @@ function createHarness(options: HarnessOptions) {
 
   let editorFactory: EditorFactory | undefined;
   let footerFactory: FooterFactory | undefined;
-  const notifications: Array<{ message: string; level: string | undefined }> =
-    [];
+  const notifications: Array<{ message: string; level: string | undefined }> = [];
 
   const sentMessages: Array<{ message: string; options?: { deliverAs: string } }> = [];
   const pi = {
@@ -201,8 +192,7 @@ function createHarness(options: HarnessOptions) {
     selectList: {},
   } as unknown as EditorTheme;
   const keybindings = {
-    matches: (data: string, key: string) =>
-      data === "ctrl+j" && key === "tui.input.submit",
+    matches: (data: string, key: string) => data === "ctrl+j" && key === "tui.input.submit",
     getKeys: () => [],
   } as unknown as KeybindingsManager;
 
@@ -225,11 +215,7 @@ function createHarness(options: HarnessOptions) {
       return createEditorComponent(tui as unknown as TUI, theme, keybindings);
     },
     createFooter() {
-      return createFooterComponent(
-        tui as unknown as TUI,
-        {} as unknown as Theme,
-        this.footerData
-      );
+      return createFooterComponent(tui as unknown as TUI, {} as unknown as Theme, this.footerData);
     },
   };
 }

@@ -18,9 +18,7 @@ const entries: FileEntry[] = [
 
 describe("file picker filtering", () => {
   it("matches glob queries against relative paths and sorts files and folders together", () => {
-    expect(
-      filterEntries(entries, "/src/**").map((entry) => entry.relativePath)
-    ).toEqual([
+    expect(filterEntries(entries, "/src/**").map((entry) => entry.relativePath)).toEqual([
       "src/components/",
       "src/components/input.ts",
       "src/index.ts",
@@ -29,16 +27,15 @@ describe("file picker filtering", () => {
   });
 
   it("uses scoped fuzzy matching to prioritize matches under the typed base path", () => {
-    expect(
-      filterEntries(entries, "src/in").map((entry) => entry.relativePath)
-    ).toEqual(["src/index.ts", "src/components/input.ts"]);
+    expect(filterEntries(entries, "src/in").map((entry) => entry.relativePath)).toEqual([
+      "src/index.ts",
+      "src/components/input.ts",
+    ]);
   });
 
   it("moves the preferred completion path to the front of fuzzy results", () => {
     expect(
-      filterEntries(entries, "index", "/lib/index.ts").map(
-        (entry) => entry.relativePath
-      )
+      filterEntries(entries, "index", "/lib/index.ts").map((entry) => entry.relativePath),
     ).toEqual(["lib/index.ts", "src/index.ts"]);
   });
 });

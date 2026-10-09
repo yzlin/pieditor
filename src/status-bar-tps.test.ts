@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type {
-  ExtensionContext,
-  Theme,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 
 import { renderStatusBarLine } from "./status-bar";
 import { TokensPerSecondTracker } from "./status-bar/tps";
@@ -24,7 +21,7 @@ function createTracker() {
 function streamMessage(
   tracker: TokensPerSecondTracker,
   advance: (ms: number) => void,
-  options: { ttftMs: number; streamMs: number; output: number; stopReason?: string }
+  options: { ttftMs: number; streamMs: number; output: number; stopReason?: string },
 ) {
   const message = assistantMessage(options.output, options.stopReason);
   tracker.handleMessageStart(message);

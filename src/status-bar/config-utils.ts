@@ -1,16 +1,13 @@
 import type { StatusBarSegmentOptions } from "./types.js";
 
-function mergeOptionGroup<T extends object>(
-  base?: T,
-  override?: T
-): T | undefined {
+function mergeOptionGroup<T extends object>(base?: T, override?: T): T | undefined {
   const merged = { ...base, ...override };
   return Object.keys(merged).length > 0 ? (merged as T) : undefined;
 }
 
 export function mergeStatusBarSegmentOptions(
   base?: StatusBarSegmentOptions,
-  override?: StatusBarSegmentOptions
+  override?: StatusBarSegmentOptions,
 ): StatusBarSegmentOptions | undefined {
   const model = mergeOptionGroup(base?.model, override?.model);
   const path = mergeOptionGroup(base?.path, override?.path);

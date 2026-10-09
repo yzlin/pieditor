@@ -11,10 +11,7 @@ import {
 const START = "\x1b[200~";
 const END = "\x1b[201~";
 const EMPTY_STATE: DoublePasteState = { candidate: null, pending: null };
-const LARGE_PASTE = Array.from(
-  { length: 11 },
-  (_, index) => `line-${index}`
-).join("\n");
+const LARGE_PASTE = Array.from({ length: 11 }, (_, index) => `line-${index}`).join("\n");
 
 describe("parseAndNormalizeBracketedPaste", () => {
   it("accepts only one complete bracketed-paste envelope", () => {
@@ -24,21 +21,15 @@ describe("parseAndNormalizeBracketedPaste", () => {
     expect(parseAndNormalizeBracketedPaste(`${START}partial`)).toBeNull();
     expect(parseAndNormalizeBracketedPaste(`prefix${START}hello${END}`)).toBeNull();
     expect(parseAndNormalizeBracketedPaste(`${START}hello${END}suffix`)).toBeNull();
-    expect(
-      parseAndNormalizeBracketedPaste(`${START}one${END}${START}two${END}`)
-    ).toBeNull();
+    expect(parseAndNormalizeBracketedPaste(`${START}one${END}${START}two${END}`)).toBeNull();
   });
 
   it("matches Pi native paste normalization while preserving Unicode", () => {
     const pasted =
-      "a\r\nb\rc\td\x00\x07" +
-      "\x1b[106;5u" +
-      "\x1b[77;5u" +
-      "\x1b[49;5u" +
-      " café 😀";
+      "a\r\nb\rc\td\x00\x07" + "\x1b[106;5u" + "\x1b[77;5u" + "\x1b[49;5u" + " café 😀";
 
     expect(parseAndNormalizeBracketedPaste(`${START}${pasted}${END}`)).toBe(
-      "a\nb\nc    d\n\n[49;5u café 😀"
+      "a\nb\nc    d\n\n[49;5u café 😀",
     );
   });
 });
@@ -112,7 +103,7 @@ describe("double-paste candidate state", () => {
         draftText: "marker",
         now: 111,
         windowMs: 100,
-      }
+      },
     );
     expect(expired.intent).toBe("allow-native");
     expect(expired.state.candidate).toBeNull();
@@ -124,13 +115,11 @@ describe("double-paste candidate state", () => {
         draftText: "marker edited",
         now: 50,
         windowMs: 100,
-      }
+      },
     );
     expect(edited.intent).toBe("allow-native");
     expect(edited.state.candidate).toBeNull();
-    expect(edited.state.pending?.pasteFingerprint).toBe(
-      fingerprintText(LARGE_PASTE)
-    );
+    expect(edited.state.pending?.pasteFingerprint).toBe(fingerprintText(LARGE_PASTE));
   });
 
   it("rolls a mismatch forward only when it creates a valid marker", () => {
@@ -146,7 +135,7 @@ describe("double-paste candidate state", () => {
         draftText: "old marker",
         now: 20,
         windowMs: 100,
-      }
+      },
     );
 
     expect(mismatch.intent).toBe("allow-native");
@@ -166,7 +155,7 @@ describe("double-paste candidate state", () => {
       confirmNativePaste(mismatch.state, {
         nativeCreatedValidMarker: false,
         draftText: "old markernew",
-      })
+      }),
     ).toEqual(EMPTY_STATE);
   });
 

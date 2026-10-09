@@ -21,10 +21,7 @@ export interface DoublePasteState {
   readonly pending: PendingDoublePasteCandidate | null;
 }
 
-export type DoublePasteIntent =
-  | "not-paste"
-  | "allow-native"
-  | "consume-expand";
+export type DoublePasteIntent = "not-paste" | "allow-native" | "consume-expand";
 
 export interface DoublePasteInspection {
   readonly intent: DoublePasteIntent;
@@ -36,21 +33,12 @@ export function fingerprintText(text: string): string {
 }
 
 export function parseAndNormalizeBracketedPaste(input: string): string | null {
-  if (
-    !input.startsWith(BRACKETED_PASTE_START) ||
-    !input.endsWith(BRACKETED_PASTE_END)
-  ) {
+  if (!input.startsWith(BRACKETED_PASTE_START) || !input.endsWith(BRACKETED_PASTE_END)) {
     return null;
   }
 
-  const pastedText = input.slice(
-    BRACKETED_PASTE_START.length,
-    -BRACKETED_PASTE_END.length
-  );
-  if (
-    pastedText.includes(BRACKETED_PASTE_START) ||
-    pastedText.includes(BRACKETED_PASTE_END)
-  ) {
+  const pastedText = input.slice(BRACKETED_PASTE_START.length, -BRACKETED_PASTE_END.length);
+  if (pastedText.includes(BRACKETED_PASTE_START) || pastedText.includes(BRACKETED_PASTE_END)) {
     return null;
   }
 
@@ -65,11 +53,10 @@ export function parseAndNormalizeBracketedPaste(input: string): string | null {
       const codePoint = Number(match?.[1]);
       if (
         match &&
-        ((codePoint >= 97 && codePoint <= 122) ||
-          (codePoint >= 65 && codePoint <= 90))
+        ((codePoint >= 97 && codePoint <= 122) || (codePoint >= 65 && codePoint <= 90))
       ) {
         const controlCharacter = String.fromCharCode(
-          codePoint >= 97 ? codePoint - 96 : codePoint - 64
+          codePoint >= 97 ? codePoint - 96 : codePoint - 64,
         );
         return controlCharacter + part.slice(match[0].length);
       }
@@ -92,7 +79,7 @@ export function inspectDoublePaste(
     draftText: string;
     now: number;
     windowMs: number;
-  }
+  },
 ): DoublePasteInspection {
   const normalizedPaste = parseAndNormalizeBracketedPaste(options.input);
   if (normalizedPaste === null) {
@@ -101,9 +88,7 @@ export function inspectDoublePaste(
 
   const pasteFingerprint = fingerprintText(normalizedPaste);
   const draftFingerprint = fingerprintText(options.draftText);
-  const age = state.candidate
-    ? options.now - state.candidate.armedAt
-    : Number.POSITIVE_INFINITY;
+  const age = state.candidate ? options.now - state.candidate.armedAt : Number.POSITIVE_INFINITY;
   const candidateMatches =
     state.candidate !== null &&
     age >= 0 &&
@@ -118,16 +103,13 @@ export function inspectDoublePaste(
     };
   }
 
-  const nativeLargePaste =
-    normalizedPaste.split("\n").length > 10 || normalizedPaste.length > 1000;
+  const nativeLargePaste = normalizedPaste.split("\n").length > 10 || normalizedPaste.length > 1000;
 
   return {
     intent: "allow-native",
     state: {
       candidate: null,
-      pending: nativeLargePaste
-        ? { pasteFingerprint, observedAt: options.now }
-        : null,
+      pending: nativeLargePaste ? { pasteFingerprint, observedAt: options.now } : null,
     },
   };
 }
@@ -137,7 +119,7 @@ export function confirmNativePaste(
   options: {
     nativeCreatedValidMarker: boolean;
     draftText: string;
-  }
+  },
 ): DoublePasteState {
   if (!options.nativeCreatedValidMarker || state.pending === null) {
     return { candidate: null, pending: null };

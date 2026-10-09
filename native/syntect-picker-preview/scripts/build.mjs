@@ -18,7 +18,7 @@ const sourceLibrary = join(
   "target",
   targetTriple,
   profileDir,
-  `lib${crateName}.${sourceExtension}`
+  `lib${crateName}.${sourceExtension}`,
 );
 const outputFile = join(packageDir, bindingName);
 
@@ -42,9 +42,7 @@ function runCargoBuild(target, isDebug) {
   const result = runCargoCommand(cargoArgs);
 
   if (result.status !== 0) {
-    throw new Error(
-      `${result.label} failed with code ${result.status ?? 1}`
-    );
+    throw new Error(`${result.label} failed with code ${result.status ?? 1}`);
   }
 }
 
@@ -89,7 +87,7 @@ function resolveTargetTriple() {
       return "aarch64-apple-darwin";
     default:
       throw new Error(
-        `Unsupported build target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`
+        `Unsupported build target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`,
       );
   }
 }
@@ -100,7 +98,7 @@ function resolveBindingName() {
       return "syntect-picker-preview.darwin-arm64.node";
     default:
       throw new Error(
-        `Unsupported runtime target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`
+        `Unsupported runtime target ${process.platform}/${process.arch}; v1 native prebuilds are macOS arm64 only.`,
       );
   }
 }

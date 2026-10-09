@@ -8,7 +8,7 @@ export interface FilePickerRuntime {
 }
 
 export function createFilePickerRuntime(
-  config: PickerRuntimeConfig = loadConfig().filePicker
+  config: PickerRuntimeConfig = loadConfig().filePicker,
 ): FilePickerRuntime {
   return {
     config,

@@ -1,9 +1,6 @@
 import { createRequire } from "node:module";
 
-import {
-  getLanguageFromPath,
-  highlightCode,
-} from "@earendil-works/pi-coding-agent";
+import { getLanguageFromPath, highlightCode } from "@earendil-works/pi-coding-agent";
 
 import type { PreviewHighlightMode } from "./types.js";
 
@@ -23,9 +20,7 @@ export interface NativeHighlightPreviewResult {
 }
 
 interface NativeHighlightBinding {
-  highlightPreview(
-    input: NativeHighlightPreviewInput
-  ): NativeHighlightPreviewResult;
+  highlightPreview(input: NativeHighlightPreviewInput): NativeHighlightPreviewResult;
 }
 
 interface ParsedPreviewLine {
@@ -37,9 +32,7 @@ interface ParsedPreviewLine {
 const BAT_LINE_NUMBER_RGB = [131, 148, 150] as const;
 const BAT_DIVIDER_RGB = [88, 110, 117] as const;
 
-function isParsedPreviewLine(
-  line: ParsedPreviewLine | null
-): line is ParsedPreviewLine {
+function isParsedPreviewLine(line: ParsedPreviewLine | null): line is ParsedPreviewLine {
   return line !== null;
 }
 
@@ -95,7 +88,7 @@ function loadNativeBinding(): NativeHighlightBinding | null {
 
 function foregroundRgb(
   text: string,
-  [red, green, blue]: readonly [number, number, number]
+  [red, green, blue]: readonly [number, number, number],
 ): string {
   return `\x1b[38;2;${red};${green};${blue}m${text}\x1b[39m`;
 }
@@ -112,7 +105,7 @@ function stylePreviewPrefix(prefix: string): string {
 
 function fallbackHighlightLines(
   parsedLines: ParsedPreviewLine[],
-  filePath: string | undefined
+  filePath: string | undefined,
 ): string[] {
   const language = filePath ? getLanguageFromPath(filePath) : undefined;
 
@@ -132,7 +125,7 @@ export function highlightPreviewLines(
   lines: string[],
   filePath?: string,
   themeMode: "dark" | "light" = "dark",
-  highlightMode: PreviewHighlightMode = "native"
+  highlightMode: PreviewHighlightMode = "native",
 ): string[] {
   if (lines.length === 0) {
     return lines;
@@ -144,12 +137,7 @@ export function highlightPreviewLines(
     return lines;
   }
 
-  const highlightedCodeLines = highlightCodeLines(
-    codeLines,
-    filePath,
-    themeMode,
-    highlightMode
-  );
+  const highlightedCodeLines = highlightCodeLines(codeLines, filePath, themeMode, highlightMode);
   let codeIndex = 0;
 
   return parsedLines.map((parsedLine, lineIndex) => {
@@ -157,8 +145,7 @@ export function highlightPreviewLines(
       return lines[lineIndex] ?? "";
     }
 
-    const highlightedLine =
-      highlightedCodeLines[codeIndex] ?? lines[lineIndex] ?? "";
+    const highlightedLine = highlightedCodeLines[codeIndex] ?? lines[lineIndex] ?? "";
     codeIndex += 1;
     return highlightedLine;
   });
@@ -168,10 +155,9 @@ function highlightCodeLines(
   codeLines: ParsedPreviewLine[],
   filePath?: string,
   themeMode: "dark" | "light" = "dark",
-  highlightMode: PreviewHighlightMode = "native"
+  highlightMode: PreviewHighlightMode = "native",
 ): string[] {
-  const fallbackToBuiltinHighlight = (): string[] =>
-    fallbackHighlightLines(codeLines, filePath);
+  const fallbackToBuiltinHighlight = (): string[] => fallbackHighlightLines(codeLines, filePath);
 
   if (highlightMode === "builtin") {
     return fallbackToBuiltinHighlight();
@@ -193,17 +179,13 @@ function highlightCodeLines(
       return fallbackToBuiltinHighlight();
     }
 
-    const highlightedLines = normalizeNativePreviewLines(
-      result.lines,
-      codeLines
-    );
+    const highlightedLines = normalizeNativePreviewLines(result.lines, codeLines);
     if (!highlightedLines) {
       return fallbackToBuiltinHighlight();
     }
 
     return codeLines.map(
-      (line, index) =>
-        `${stylePreviewPrefix(line.prefix)}${highlightedLines[index] ?? line.code}`
+      (line, index) => `${stylePreviewPrefix(line.prefix)}${highlightedLines[index] ?? line.code}`,
     );
   } catch {
     return fallbackToBuiltinHighlight();
@@ -212,17 +194,14 @@ function highlightCodeLines(
 
 function normalizeNativePreviewLines(
   highlightedLines: string[],
-  codeLines: ParsedPreviewLine[]
+  codeLines: ParsedPreviewLine[],
 ): string[] | null {
   if (highlightedLines.length === codeLines.length) {
     return highlightedLines;
   }
 
   const lastCodeLine = codeLines.at(-1);
-  if (
-    highlightedLines.length + 1 === codeLines.length &&
-    lastCodeLine?.code === ""
-  ) {
+  if (highlightedLines.length + 1 === codeLines.length && lastCodeLine?.code === "") {
     return [...highlightedLines, ""];
   }
 
@@ -233,20 +212,13 @@ export function highlightPreviewLine(
   line: string,
   filePath?: string,
   themeMode: "dark" | "light" = "dark",
-  highlightMode: PreviewHighlightMode = "native"
+  highlightMode: PreviewHighlightMode = "native",
 ): string {
-  const [highlighted = line] = highlightPreviewLines(
-    [line],
-    filePath,
-    themeMode,
-    highlightMode
-  );
+  const [highlighted = line] = highlightPreviewLines([line], filePath, themeMode, highlightMode);
   return highlighted;
 }
 
-export function warmPreviewHighlighter(
-  highlightMode: PreviewHighlightMode = "native"
-): void {
+export function warmPreviewHighlighter(highlightMode: PreviewHighlightMode = "native"): void {
   if (highlightMode === "builtin" || nativeWarmupAttempted) {
     return;
   }
@@ -283,7 +255,7 @@ export function resolveNativeHighlightBindingPathForTests(): string | null {
 }
 
 export function setNativeHighlightBindingLoaderForTests(
-  loader: (() => NativeHighlightBinding | null) | null
+  loader: (() => NativeHighlightBinding | null) | null,
 ): void {
   nativeBindingLoader = loader;
   nativeBindingCache = undefined;

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  DoubleSubmitContinue,
-  matchesConfiguredSubmit,
-} from "./double-enter-continue";
+import { DoubleSubmitContinue, matchesConfiguredSubmit } from "./double-enter-continue";
 
 function harness() {
   let now = 0;

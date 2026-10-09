@@ -26,9 +26,5 @@ export interface CompletionResult {
  * Returns null if the user hasn't configured completions for this shell.
  */
 export interface ShellCompletionProvider {
-  getCompletions(
-    commandLine: string,
-    cwd: string,
-    shellPath: string
-  ): CompletionResult | null;
+  getCompletions(commandLine: string, cwd: string, shellPath: string): CompletionResult | null;
 }

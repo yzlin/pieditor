@@ -116,9 +116,7 @@ describe("file picker keybindings", () => {
 
     expect(internals(downBrowser).focusOnOptions).toBe(true);
     expect(internals(ctrlNBrowser).focusOnOptions).toBe(true);
-    expect(internals(ctrlNBrowser).selectedOption).toBe(
-      internals(downBrowser).selectedOption
-    );
+    expect(internals(ctrlNBrowser).selectedOption).toBe(internals(downBrowser).selectedOption);
 
     const upBrowser = new FileBrowserComponent(() => {
       /* noop */
@@ -132,8 +130,6 @@ describe("file picker keybindings", () => {
     ctrlPBrowser.handleInput("\u001b[Z");
     ctrlPBrowser.handleInput("\x10");
 
-    expect(internals(ctrlPBrowser).selectedOption).toBe(
-      internals(upBrowser).selectedOption
-    );
+    expect(internals(ctrlPBrowser).selectedOption).toBe(internals(upBrowser).selectedOption);
   });
 });

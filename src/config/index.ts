@@ -2,10 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type {
-  PickerConfig,
-  PickerRuntimeConfig,
-} from "../file-picker/types.js";
+import type { PickerConfig, PickerRuntimeConfig } from "../file-picker/types.js";
 import { mergeStatusBarSegmentOptions } from "../status-bar/config-utils.js";
 import {
   type ColorScheme,
@@ -15,10 +12,7 @@ import {
   type StatusBarSegmentId,
   type StatusBarSegmentOptions,
 } from "../status-bar/types.js";
-import {
-  mergeFilePickerConfigs,
-  normalizeFilePickerConfig,
-} from "./file-picker.js";
+import { mergeFilePickerConfigs, normalizeFilePickerConfig } from "./file-picker.js";
 
 export interface StatusBarConfig {
   enabled?: boolean;
@@ -141,7 +135,7 @@ export function normalizeCommandRemap(value: unknown): Record<string, string> {
 }
 
 function normalizeEditorChromeConfig(
-  value: unknown
+  value: unknown,
 ): Partial<EditorChromeRuntimeConfig> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -171,9 +165,7 @@ function mergeEditorChromeConfigs(
   return { style };
 }
 
-function normalizeDoublePasteConfig(
-  value: unknown
-): Partial<DoublePasteRuntimeConfig> | undefined {
+function normalizeDoublePasteConfig(value: unknown): Partial<DoublePasteRuntimeConfig> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
@@ -224,20 +216,16 @@ function normalizeStatusBarPreset(value: unknown): StatusBarPreset | null {
 }
 
 const STATUS_BAR_SEGMENT_ID_SET = new Set<string>(STATUS_BAR_SEGMENT_IDS);
-const STATUS_BAR_SEMANTIC_COLOR_SET = new Set<string>(
-  STATUS_BAR_SEMANTIC_COLORS
-);
+const STATUS_BAR_SEMANTIC_COLOR_SET = new Set<string>(STATUS_BAR_SEMANTIC_COLORS);
 
-function normalizeStatusBarSegments(
-  value: unknown
-): StatusBarSegmentId[] | null {
+function normalizeStatusBarSegments(value: unknown): StatusBarSegmentId[] | null {
   if (!Array.isArray(value)) {
     return null;
   }
 
   return value.filter(
     (entry): entry is StatusBarSegmentId =>
-      typeof entry === "string" && STATUS_BAR_SEGMENT_ID_SET.has(entry)
+      typeof entry === "string" && STATUS_BAR_SEGMENT_ID_SET.has(entry),
   );
 }
 
@@ -254,10 +242,7 @@ function normalizeStatusBarColors(value: unknown): ColorScheme | null {
   const next: ColorScheme = {};
 
   for (const [key, candidate] of Object.entries(raw)) {
-    if (
-      !STATUS_BAR_SEMANTIC_COLOR_SET.has(key) ||
-      typeof candidate !== "string"
-    ) {
+    if (!STATUS_BAR_SEMANTIC_COLOR_SET.has(key) || typeof candidate !== "string") {
       continue;
     }
 
@@ -272,9 +257,7 @@ function normalizeStatusBarColors(value: unknown): ColorScheme | null {
   return Object.keys(next).length > 0 ? next : null;
 }
 
-function normalizeStatusBarSegmentOptions(
-  value: unknown
-): StatusBarSegmentOptions | null {
+function normalizeStatusBarSegmentOptions(value: unknown): StatusBarSegmentOptions | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -293,11 +276,7 @@ function normalizeStatusBarSegmentOptions(
     const path = raw.path as Record<string, unknown>;
     const pathOptions: NonNullable<StatusBarSegmentOptions["path"]> = {};
 
-    if (
-      path.mode === "basename" ||
-      path.mode === "abbreviated" ||
-      path.mode === "full"
-    ) {
+    if (path.mode === "basename" || path.mode === "abbreviated" || path.mode === "full") {
       pathOptions.mode = path.mode;
     }
 
@@ -356,17 +335,12 @@ function normalizeStatusBarSegmentOptions(
   return Object.keys(next).length > 0 ? next : null;
 }
 
-function mergeStatusBarColors(
-  base?: ColorScheme,
-  override?: ColorScheme
-): ColorScheme | undefined {
+function mergeStatusBarColors(base?: ColorScheme, override?: ColorScheme): ColorScheme | undefined {
   const merged = { ...base, ...override };
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
-function normalizeStatusBarConfig(
-  value: unknown
-): Partial<StatusBarRuntimeConfig> | undefined {
+function normalizeStatusBarConfig(value: unknown): Partial<StatusBarRuntimeConfig> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
   }
@@ -423,22 +397,18 @@ function normalizeStatusBarConfig(
 
 function loadConfigFile(
   configPath: string,
-  onConfigError?: (message: string) => void
+  onConfigError?: (message: string) => void,
 ): EditorEnhancementsConfigLayer | null {
   if (!existsSync(configPath)) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(
-      readFileSync(configPath, "utf-8")
-    ) as EditorEnhancementsConfig;
+    const parsed = JSON.parse(readFileSync(configPath, "utf-8")) as EditorEnhancementsConfig;
     const next: EditorEnhancementsConfigLayer = {};
 
     if (Object.hasOwn(parsed, "doubleEscapeCommand")) {
-      next.doubleEscapeCommand = normalizeCommandName(
-        parsed.doubleEscapeCommand
-      );
+      next.doubleEscapeCommand = normalizeCommandName(parsed.doubleEscapeCommand);
     }
 
     if (Object.hasOwn(parsed, "commandRemap")) {
@@ -471,7 +441,7 @@ function loadConfigFile(
 
 export function resolveRuntimeConfig(
   globalConfig: EditorEnhancementsConfigLayer | null,
-  projectConfig: EditorEnhancementsConfigLayer | null
+  projectConfig: EditorEnhancementsConfigLayer | null,
 ): EditorEnhancementsRuntimeConfig {
   return {
     doubleEscapeCommand:
@@ -486,16 +456,13 @@ export function resolveRuntimeConfig(
     editorChrome: mergeEditorChromeConfigs(
       DEFAULT_CONFIG.editorChrome,
       globalConfig?.editorChrome,
-      projectConfig?.editorChrome
+      projectConfig?.editorChrome,
     ),
-    doublePaste: mergeDoublePasteConfigs(
-      globalConfig?.doublePaste,
-      projectConfig?.doublePaste
-    ),
+    doublePaste: mergeDoublePasteConfigs(globalConfig?.doublePaste, projectConfig?.doublePaste),
     filePicker: mergeFilePickerConfigs(
       DEFAULT_CONFIG.filePicker,
       globalConfig?.filePicker,
-      projectConfig?.filePicker
+      projectConfig?.filePicker,
     ),
     statusBar: {
       enabled:
@@ -506,22 +473,17 @@ export function resolveRuntimeConfig(
         projectConfig?.statusBar?.preset ??
         globalConfig?.statusBar?.preset ??
         DEFAULT_CONFIG.statusBar.preset,
-      leftSegments:
-        projectConfig?.statusBar?.leftSegments ??
-        globalConfig?.statusBar?.leftSegments,
+      leftSegments: projectConfig?.statusBar?.leftSegments ?? globalConfig?.statusBar?.leftSegments,
       rightSegments:
-        projectConfig?.statusBar?.rightSegments ??
-        globalConfig?.statusBar?.rightSegments,
-      separator:
-        projectConfig?.statusBar?.separator ??
-        globalConfig?.statusBar?.separator,
+        projectConfig?.statusBar?.rightSegments ?? globalConfig?.statusBar?.rightSegments,
+      separator: projectConfig?.statusBar?.separator ?? globalConfig?.statusBar?.separator,
       colors: mergeStatusBarColors(
         globalConfig?.statusBar?.colors,
-        projectConfig?.statusBar?.colors
+        projectConfig?.statusBar?.colors,
       ),
       segmentOptions: mergeStatusBarSegmentOptions(
         globalConfig?.statusBar?.segmentOptions,
-        projectConfig?.statusBar?.segmentOptions
+        projectConfig?.statusBar?.segmentOptions,
       ),
     },
   };
@@ -539,19 +501,11 @@ export function getProjectPieditorConfigPath(cwd = process.cwd()): string {
   return join(cwd, ".pi", "pieditor.json");
 }
 
-export function loadConfig(
-  options: LoadConfigOptions = {}
-): EditorEnhancementsRuntimeConfig {
+export function loadConfig(options: LoadConfigOptions = {}): EditorEnhancementsRuntimeConfig {
   const homeDir = options.homeDir ?? getHomeDir();
   const cwd = options.cwd ?? process.cwd();
-  const globalConfig = loadConfigFile(
-    getGlobalPieditorConfigPath(homeDir),
-    options.onConfigError
-  );
-  const projectConfig = loadConfigFile(
-    getProjectPieditorConfigPath(cwd),
-    options.onConfigError
-  );
+  const globalConfig = loadConfigFile(getGlobalPieditorConfigPath(homeDir), options.onConfigError);
+  const projectConfig = loadConfigFile(getProjectPieditorConfigPath(cwd), options.onConfigError);
 
   return resolveRuntimeConfig(globalConfig, projectConfig);
 }

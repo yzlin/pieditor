@@ -36,10 +36,7 @@ export function getDefaultColors(): Required<ColorScheme> {
   return { ...DEFAULT_COLORS };
 }
 
-export function resolveColor(
-  semantic: SemanticColor,
-  presetColors?: ColorScheme
-): ColorValue {
+export function resolveColor(semantic: SemanticColor, presetColors?: ColorScheme): ColorValue {
   return presetColors?.[semantic] ?? DEFAULT_COLORS[semantic];
 }
 
@@ -55,11 +52,7 @@ function hexToAnsi(hex: string): string {
   return `\x1b[38;2;${r};${g};${b}m`;
 }
 
-export function applyColor(
-  theme: Theme,
-  color: ColorValue,
-  text: string
-): string {
+export function applyColor(theme: Theme, color: ColorValue, text: string): string {
   if (isHexColor(color)) {
     return `${hexToAnsi(color)}${text}\x1b[0m`;
   }
@@ -75,7 +68,7 @@ export function applyColor(
       }
       console.debug(
         `[pieditor/status-bar] Invalid theme color "${key}"; falling back to "text".`,
-        error
+        error,
       );
     }
     return theme.fg("text", text);
@@ -86,7 +79,7 @@ export function fg(
   theme: Theme,
   semantic: SemanticColor,
   text: string,
-  presetColors?: ColorScheme
+  presetColors?: ColorScheme,
 ): string {
   return applyColor(theme, resolveColor(semantic, presetColors), text);
 }

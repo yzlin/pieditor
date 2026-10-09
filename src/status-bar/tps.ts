@@ -1,10 +1,6 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 
-const STREAM_DELTA_EVENTS = new Set([
-  "text_delta",
-  "thinking_delta",
-  "toolcall_delta",
-]);
+const STREAM_DELTA_EVENTS = new Set(["text_delta", "thinking_delta", "toolcall_delta"]);
 
 // Shorter streams (e.g. one buffered chunk) produce meaningless rates.
 const MIN_SAMPLE_MS = 250;
@@ -13,9 +9,7 @@ interface MessageLike {
   role: string;
 }
 
-function isAssistantMessage(
-  message: MessageLike
-): message is AssistantMessage {
+function isAssistantMessage(message: MessageLike): message is AssistantMessage {
   return message.role === "assistant";
 }
 
@@ -35,10 +29,7 @@ export class TokensPerSecondTracker {
     }
   }
 
-  handleMessageUpdate(
-    message: MessageLike,
-    assistantMessageEvent: { type: string }
-  ): void {
+  handleMessageUpdate(message: MessageLike, assistantMessageEvent: { type: string }): void {
     if (
       this.firstDeltaAt === null &&
       isAssistantMessage(message) &&

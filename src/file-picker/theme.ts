@@ -35,7 +35,7 @@ function loadTheme(): PaletteTheme {
     "agent",
     "extensions",
     "file-picker",
-    "theme.json"
+    "theme.json",
   );
   try {
     if (fs.existsSync(themePath)) {

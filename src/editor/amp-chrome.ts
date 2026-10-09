@@ -17,14 +17,10 @@ export interface RenderAmpEditorChromeOptions {
 const DEFAULT_MIN_BODY_HEIGHT = 3;
 export const MIN_AMP_WIDTH = 12;
 export const AMP_BODY_HORIZONTAL_CHROME_WIDTH = 4;
-const ANSI_ESCAPE_PATTERN = new RegExp(
-  `${String.fromCharCode(27)}\\[[0-9;]*m`,
-  "g"
-);
+const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 const HORIZONTAL_BORDER_PATTERN = /^─+$/u;
 const FULL_SCROLL_BORDER_PATTERN = /^─+ ([↑↓]) \d+ more ─*$/u;
-const TRUNCATED_SCROLL_BORDER_PATTERN =
-  /^─── ([↑↓])(?: \d+(?: m(?:o(?:r(?:e)?)?)?)?)? ?\.{3}$/u;
+const TRUNCATED_SCROLL_BORDER_PATTERN = /^─── ([↑↓])(?: \d+(?: m(?:o(?:r(?:e)?)?)?)?)? ?\.{3}$/u;
 
 type ScrollDirection = "↑" | "↓";
 
@@ -39,23 +35,19 @@ function stripAnsi(value: string): string {
 function getScrollBorderDirection(value: string): ScrollDirection | null {
   const plain = stripAnsi(value);
   const direction =
-    FULL_SCROLL_BORDER_PATTERN.exec(plain)?.[1] ??
-    TRUNCATED_SCROLL_BORDER_PATTERN.exec(plain)?.[1];
+    FULL_SCROLL_BORDER_PATTERN.exec(plain)?.[1] ?? TRUNCATED_SCROLL_BORDER_PATTERN.exec(plain)?.[1];
   return direction === "↑" || direction === "↓" ? direction : null;
 }
 
 function isBorderLine(value: string): boolean {
   return (
-    HORIZONTAL_BORDER_PATTERN.test(stripAnsi(value)) ||
-    getScrollBorderDirection(value) !== null
+    HORIZONTAL_BORDER_PATTERN.test(stripAnsi(value)) || getScrollBorderDirection(value) !== null
   );
 }
 
 function truncateVisible(value: string, width: number): string {
   const truncated = truncateToWidth(value, width, "");
-  return hasAnsi(value)
-    ? truncated
-    : truncated.replace(ANSI_ESCAPE_PATTERN, "");
+  return hasAnsi(value) ? truncated : truncated.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 function fitVisible(value: string, width: number): string {
@@ -88,26 +80,20 @@ function renderTopBorder(options: {
   let right = truncateVisible(rightContent, remainingForRight);
 
   if (visibleWidth(left) + visibleWidth(right) > innerWidth) {
-    right = truncateVisible(
-      right,
-      Math.max(0, innerWidth - visibleWidth(left))
-    );
+    right = truncateVisible(right, Math.max(0, innerWidth - visibleWidth(left)));
   }
   if (visibleWidth(left) + visibleWidth(right) > innerWidth) {
     left = truncateVisible(left, Math.max(0, innerWidth - visibleWidth(right)));
   }
 
-  const fillWidth = Math.max(
-    0,
-    innerWidth - visibleWidth(left) - visibleWidth(right)
-  );
+  const fillWidth = Math.max(0, innerWidth - visibleWidth(left) - visibleWidth(right));
   return `${borderColor("╭")}${left}${borderColor("─".repeat(fillWidth))}${right}${borderColor("╮")}`;
 }
 
 function renderBottomBorder(
   width: number,
   content: string,
-  borderColor: (value: string) => string
+  borderColor: (value: string) => string,
 ): string {
   const innerWidth = width - 2;
   if (!content) {
@@ -123,7 +109,7 @@ function renderBottomBorder(
 function renderBodyLine(
   line: string,
   width: number,
-  borderColor: (value: string) => string
+  borderColor: (value: string) => string,
 ): string {
   const contentWidth = width - 4;
   return `${borderColor("│")} ${fitVisible(line, contentWidth)} ${borderColor("│")}`;
@@ -133,7 +119,7 @@ function renderScrollBorder(
   width: number,
   nativeBorder: string,
   position: "top" | "bottom",
-  borderColor: (value: string) => string
+  borderColor: (value: string) => string,
 ): string {
   const innerWidth = width - 2;
   const content = truncateVisible(nativeBorder, innerWidth);
@@ -158,19 +144,15 @@ export function renderAmpEditorChrome({
   }
 
   const topNativeBorder = stripAnsi(editorLines[0] ?? "");
-  const bottomIndex = editorLines.findIndex(
-    (line, index) => index > 0 && isBorderLine(line)
-  );
+  const bottomIndex = editorLines.findIndex((line, index) => index > 0 && isBorderLine(line));
 
   if (bottomIndex < 0) {
     return editorLines;
   }
 
   const bottomNativeBorder = stripAnsi(editorLines[bottomIndex] ?? "");
-  const hasTopScrollIndicator =
-    getScrollBorderDirection(topNativeBorder) === "↑";
-  const hasBottomScrollIndicator =
-    getScrollBorderDirection(bottomNativeBorder) === "↓";
+  const hasTopScrollIndicator = getScrollBorderDirection(topNativeBorder) === "↑";
+  const hasBottomScrollIndicator = getScrollBorderDirection(bottomNativeBorder) === "↓";
 
   const body = editorLines.slice(1, bottomIndex);
   const popup = editorLines.slice(bottomIndex + 1);

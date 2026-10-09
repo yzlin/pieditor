@@ -2,18 +2,13 @@ import type { KeybindingsManager } from "@earendil-works/pi-coding-agent";
 
 export const DOUBLE_ESCAPE_WINDOW_MS = 500;
 
-export function matchesInterrupt(
-  keybindingsManager: KeybindingsManager,
-  data: string
-): boolean {
-  const matchesKeybinding = keybindingsManager.matches.bind(
-    keybindingsManager
-  ) as unknown as (input: string, key: string) => boolean;
+export function matchesInterrupt(keybindingsManager: KeybindingsManager, data: string): boolean {
+  const matchesKeybinding = keybindingsManager.matches.bind(keybindingsManager) as unknown as (
+    input: string,
+    key: string,
+  ) => boolean;
 
-  return (
-    matchesKeybinding(data, "app.interrupt") ||
-    matchesKeybinding(data, "interrupt")
-  );
+  return matchesKeybinding(data, "app.interrupt") || matchesKeybinding(data, "interrupt");
 }
 
 export function shouldHandleConfiguredDoubleEscape(options: {
@@ -26,10 +21,10 @@ export function shouldHandleConfiguredDoubleEscape(options: {
 }): boolean {
   return Boolean(
     options.doubleEscapeCommand &&
-      matchesInterrupt(options.keybindingsManager, options.data) &&
-      !options.isShowingAutocomplete &&
-      !options.editorText.trim() &&
-      options.canTriggerDoubleEscapeCommand
+    matchesInterrupt(options.keybindingsManager, options.data) &&
+    !options.isShowingAutocomplete &&
+    !options.editorText.trim() &&
+    options.canTriggerDoubleEscapeCommand,
   );
 }
 

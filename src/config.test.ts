@@ -1,17 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import {
-  loadConfig,
-  resolveRuntimeConfig,
-} from "./config";
+import { loadConfig, resolveRuntimeConfig } from "./config";
 import { DEFAULT_FILE_PICKER_CONFIG } from "./file-picker-config";
 
 describe("pieditor config", () => {
@@ -73,7 +65,7 @@ describe("pieditor config", () => {
             model: { showThinkingLevel: true },
           },
         },
-      }
+      },
     );
 
     expect(config).toEqual({
@@ -129,7 +121,7 @@ describe("pieditor config", () => {
   it("merges double paste fields independently with project precedence", () => {
     const config = resolveRuntimeConfig(
       { doublePaste: { enabled: false, windowMs: 750 } },
-      { doublePaste: { enabled: true } }
+      { doublePaste: { enabled: true } },
     );
 
     expect(config.doublePaste).toEqual({ enabled: true, windowMs: 750 });
@@ -137,10 +129,9 @@ describe("pieditor config", () => {
 
   it("rejects non-positive, non-integer, and non-finite double paste windows", () => {
     for (const windowMs of [0, -1, 1.5, Number.POSITIVE_INFINITY, Number.NaN]) {
-      expect(
-        resolveRuntimeConfig({ doublePaste: { windowMs } }, null).doublePaste
-          .windowMs
-      ).toBe(1000);
+      expect(resolveRuntimeConfig({ doublePaste: { windowMs } }, null).doublePaste.windowMs).toBe(
+        1000,
+      );
     }
   });
 
@@ -155,11 +146,11 @@ describe("pieditor config", () => {
     mkdirSync(dirname(projectConfigPath), { recursive: true });
     writeFileSync(
       globalConfigPath,
-      JSON.stringify({ doublePaste: { enabled: false, windowMs: 625 } })
+      JSON.stringify({ doublePaste: { enabled: false, windowMs: 625 } }),
     );
     writeFileSync(
       projectConfigPath,
-      JSON.stringify({ doublePaste: { enabled: "yes", windowMs: 1.5 } })
+      JSON.stringify({ doublePaste: { enabled: "yes", windowMs: 1.5 } }),
     );
 
     try {
@@ -172,13 +163,13 @@ describe("pieditor config", () => {
         globalConfigPath,
         JSON.stringify({
           doublePaste: { enabled: 1, windowMs: 0 },
-        })
+        }),
       );
       writeFileSync(
         projectConfigPath,
         JSON.stringify({
           doublePaste: { enabled: null, windowMs: Number.POSITIVE_INFINITY },
-        })
+        }),
       );
 
       expect(loadConfig({ homeDir, cwd }).doublePaste).toEqual({
@@ -199,7 +190,7 @@ describe("pieditor config", () => {
         commandRemap: {
           tree: "anycopy",
         },
-      }
+      },
     );
 
     expect(config).toEqual({
@@ -229,10 +220,9 @@ describe("pieditor config", () => {
   });
 
   it("uses amp editor chrome style when configured", () => {
-    expect(
-      resolveRuntimeConfig({ editorChrome: { style: "amp" } }, null)
-        .editorChrome
-    ).toEqual({ style: "amp" });
+    expect(resolveRuntimeConfig({ editorChrome: { style: "amp" } }, null).editorChrome).toEqual({
+      style: "amp",
+    });
   });
 
   it("ignores invalid editor chrome style and falls back through layers", () => {
@@ -244,14 +234,8 @@ describe("pieditor config", () => {
 
     mkdirSync(dirname(globalConfigPath), { recursive: true });
     mkdirSync(dirname(projectConfigPath), { recursive: true });
-    writeFileSync(
-      globalConfigPath,
-      JSON.stringify({ editorChrome: { style: "amp" } })
-    );
-    writeFileSync(
-      projectConfigPath,
-      JSON.stringify({ editorChrome: { style: "modern" } })
-    );
+    writeFileSync(globalConfigPath, JSON.stringify({ editorChrome: { style: "amp" } }));
+    writeFileSync(projectConfigPath, JSON.stringify({ editorChrome: { style: "modern" } }));
 
     try {
       expect(loadConfig({ homeDir, cwd }).editorChrome).toEqual({
@@ -266,8 +250,8 @@ describe("pieditor config", () => {
     expect(
       resolveRuntimeConfig(
         { editorChrome: { style: "classic" } },
-        { editorChrome: { style: "amp" } }
-      ).editorChrome
+        { editorChrome: { style: "amp" } },
+      ).editorChrome,
     ).toEqual({ style: "amp" });
   });
 
@@ -284,7 +268,7 @@ describe("pieditor config", () => {
         statusBar: {
           preset: "compact",
         },
-      }
+      },
     );
 
     expect(config.statusBar).toEqual({
@@ -312,7 +296,7 @@ describe("pieditor config", () => {
             context: "#89d281",
           },
         },
-      }
+      },
     );
 
     expect(config.statusBar.colors).toEqual({
@@ -340,7 +324,7 @@ describe("pieditor config", () => {
             time: { format: "12h" },
           },
         },
-      }
+      },
     );
 
     expect(config.statusBar.segmentOptions).toEqual({
@@ -359,7 +343,7 @@ describe("pieditor config", () => {
     mkdirSync(dirname(configPath), { recursive: true });
     writeFileSync(
       configPath,
-      JSON.stringify({ fixedEditor: { enabled: true }, editorChrome: { style: "amp" } })
+      JSON.stringify({ fixedEditor: { enabled: true }, editorChrome: { style: "amp" } }),
     );
 
     try {
@@ -384,7 +368,7 @@ describe("pieditor config", () => {
         statusBar: {
           separator: "",
         },
-      })
+      }),
     );
 
     try {

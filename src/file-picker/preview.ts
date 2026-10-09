@@ -87,7 +87,7 @@ function isBinaryBuffer(buffer: Buffer): boolean {
 
 function readFilePrefix(
   filePath: string,
-  maxBytes: number
+  maxBytes: number,
 ): { buffer: Buffer; truncated: boolean } {
   const handle = fs.openSync(filePath, "r");
   try {
@@ -103,23 +103,18 @@ function readFilePrefix(
   }
 }
 
-function resolvePreviewTitle(
-  relativePath: string,
-  isDirectory: boolean
-): string {
+function resolvePreviewTitle(relativePath: string, isDirectory: boolean): string {
   const displayPath = toDisplayPath(relativePath);
   if (displayPath === ".") {
     return "./";
   }
-  return isDirectory && !displayPath.endsWith("/")
-    ? `${displayPath}/`
-    : displayPath;
+  return isDirectory && !displayPath.endsWith("/") ? `${displayPath}/` : displayPath;
 }
 
 function buildDirectoryPreview(
   absolutePath: string,
   relativePath: string,
-  maxLines: number
+  maxLines: number,
 ): PickerPreviewData {
   try {
     const items = fs
@@ -164,7 +159,7 @@ function buildFilePreview(
   absolutePath: string,
   relativePath: string,
   maxLines: number,
-  maxBytes: number
+  maxBytes: number,
 ): PickerPreviewData {
   try {
     const stats = fs.statSync(absolutePath);
@@ -174,28 +169,19 @@ function buildFilePreview(
         kind: "binary",
         title: resolvePreviewTitle(relativePath, false),
         details: `binary • ${formatByteSize(stats.size)}`,
-        lines: [
-          "Binary file preview unavailable.",
-          "Attach to inspect with tools.",
-        ],
+        lines: ["Binary file preview unavailable.", "Attach to inspect with tools."],
       };
     }
 
     const previewText = buffer.toString("utf8").replace(/\r\n?/g, "\n");
     const previewLines = previewText.split("\n");
-    const lineNumberWidth = Math.max(
-      2,
-      String(Math.max(previewLines.length, 1)).length
-    );
+    const lineNumberWidth = Math.max(2, String(Math.max(previewLines.length, 1)).length);
     const lines = previewLines.slice(0, maxLines).map((line, index) => {
       const lineNumber = String(index + 1).padStart(lineNumberWidth, " ");
       return `${lineNumber} │ ${normalizePreviewLine(line)}`;
     });
 
-    if (
-      lines.length === 0 ||
-      (lines.length === 1 && lines[0]?.endsWith("│ "))
-    ) {
+    if (lines.length === 0 || (lines.length === 1 && lines[0]?.endsWith("│ "))) {
       lines.length = 0;
       lines.push("(empty file)");
     }
@@ -241,8 +227,7 @@ export function loadPreviewData({
   }
 
   if (entry.name === ".." && entry.relativePath === "..") {
-    const targetPath =
-      currentDir === cwdRoot ? cwdRoot : path.dirname(currentDir);
+    const targetPath = currentDir === cwdRoot ? cwdRoot : path.dirname(currentDir);
     return {
       kind: "navigation",
       title: "..",
@@ -255,9 +240,7 @@ export function loadPreviewData({
   }
 
   const absolutePath =
-    entry.relativePath === "."
-      ? cwdRoot
-      : path.resolve(cwdRoot, entry.relativePath);
+    entry.relativePath === "." ? cwdRoot : path.resolve(cwdRoot, entry.relativePath);
   const boundedMaxLines = Math.max(1, maxLines);
 
   if (!isWithinCwd(absolutePath, cwdRoot)) {
@@ -277,17 +260,13 @@ export function loadPreviewData({
   }
 
   if (entry.isDirectory) {
-    return buildDirectoryPreview(
-      absolutePath,
-      entry.relativePath,
-      boundedMaxLines
-    );
+    return buildDirectoryPreview(absolutePath, entry.relativePath, boundedMaxLines);
   }
 
   return buildFilePreview(
     absolutePath,
     entry.relativePath,
     boundedMaxLines,
-    Math.max(1024, maxBytes)
+    Math.max(1024, maxBytes),
   );
 }

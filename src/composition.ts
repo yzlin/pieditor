@@ -11,8 +11,8 @@ import type { EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { loadConfig } from "./config.js";
 import { EnhancedEditor } from "./enhanced-editor.js";
 import { warmPreviewHighlighter } from "./file-picker-highlight.js";
-import { TokensPerSecondTracker } from "./status-bar/tps.js";
 import { invalidateGitBranch, invalidateGitStatus } from "./status-bar-git.js";
+import { TokensPerSecondTracker } from "./status-bar/tps.js";
 
 type CopyText = (text: string) => Promise<void> | void;
 
@@ -34,7 +34,7 @@ const GIT_BRANCH_PATTERNS = [
 
 function getDoubleEscapeCommandState(
   pi: ExtensionAPI,
-  doubleEscapeCommand: string | null
+  doubleEscapeCommand: string | null,
 ): { command: string | null; isVisible: boolean } {
   if (!doubleEscapeCommand) {
     return { command: null, isVisible: false };
@@ -42,9 +42,7 @@ function getDoubleEscapeCommandState(
 
   return {
     command: doubleEscapeCommand,
-    isVisible: pi
-      .getCommands()
-      .some((command) => command.name === doubleEscapeCommand),
+    isVisible: pi.getCommands().some((command) => command.name === doubleEscapeCommand),
   };
 }
 
@@ -59,7 +57,7 @@ function invalidateGitState(): void {
 
 export function createPieditorComposition(
   pi: ExtensionAPI,
-  options: PieditorCompositionOptions = {}
+  options: PieditorCompositionOptions = {},
 ) {
   const runtime: PieditorRuntime = {
     activeContext: null,
@@ -87,85 +85,63 @@ export function createPieditorComposition(
       let warnedMissingDoubleEscapeCommand = false;
 
       const getDoubleEscapeCommand = () => {
-        const commandState = getDoubleEscapeCommandState(
-          pi,
-          config.doubleEscapeCommand
-        );
+        const commandState = getDoubleEscapeCommandState(pi, config.doubleEscapeCommand);
 
-        if (
-          commandState.command &&
-          !commandState.isVisible &&
-          !warnedMissingDoubleEscapeCommand
-        ) {
+        if (commandState.command && !commandState.isVisible && !warnedMissingDoubleEscapeCommand) {
           ctx.ui.notify(
             `pieditor: '/${commandState.command}' is not currently visible in slash commands; submitting it anyway`,
-            "warning"
+            "warning",
           );
         }
 
-        warnedMissingDoubleEscapeCommand = Boolean(
-          commandState.command && !commandState.isVisible
-        );
+        warnedMissingDoubleEscapeCommand = Boolean(commandState.command && !commandState.isVisible);
         return commandState.command;
       };
 
-      ctx.ui.setEditorComponent(
-        (tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-          runtime.activeEditorTui = tui;
-          runtime.activeEditor = new EnhancedEditor(
-            tui,
-            theme,
-            keybindings,
-            ctx.ui,
-            {
-              onContinue: () => {
-                if (runtime.activeContext?.isIdle()) {
-                  pi.sendUserMessage("continue");
-                } else {
-                  pi.sendUserMessage("continue", { deliverAs: "followUp" });
-                }
-              },
-              getDoubleEscapeCommand,
-              canTriggerDoubleEscapeCommand: () =>
-                Boolean(
-                  runtime.activeContext?.isIdle() &&
-                    !runtime.activeContext.hasPendingMessages()
-                ),
-              commandRemap: config.commandRemap,
-              doublePaste: config.doublePaste,
-              editorChrome: config.editorChrome,
-              statusBar: {
-                config: config.statusBar,
-                getContext: () => runtime.activeContext,
-                getFooterData: () => runtime.activeFooterData,
-                getTokensPerSecond: () => tpsTracker.getTokensPerSecond(),
-              },
+      ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
+        runtime.activeEditorTui = tui;
+        runtime.activeEditor = new EnhancedEditor(tui, theme, keybindings, ctx.ui, {
+          onContinue: () => {
+            if (runtime.activeContext?.isIdle()) {
+              pi.sendUserMessage("continue");
+            } else {
+              pi.sendUserMessage("continue", { deliverAs: "followUp" });
             }
-          );
-          return runtime.activeEditor;
-        }
-      );
+          },
+          getDoubleEscapeCommand,
+          canTriggerDoubleEscapeCommand: () =>
+            Boolean(runtime.activeContext?.isIdle() && !runtime.activeContext.hasPendingMessages()),
+          commandRemap: config.commandRemap,
+          doublePaste: config.doublePaste,
+          editorChrome: config.editorChrome,
+          statusBar: {
+            config: config.statusBar,
+            getContext: () => runtime.activeContext,
+            getFooterData: () => runtime.activeFooterData,
+            getTokensPerSecond: () => tpsTracker.getTokensPerSecond(),
+          },
+        });
+        return runtime.activeEditor;
+      });
 
-      ctx.ui.setFooter(
-        (tui: TUI, _theme: Theme, footerData: ReadonlyFooterDataProvider) => {
-          runtime.activeFooterData = footerData;
-          const unsub = footerData.onBranchChange(() => tui.requestRender());
-          return {
-            dispose() {
-              unsub();
-              if (runtime.activeFooterData === footerData) {
-                runtime.activeFooterData = null;
-              }
-            },
-            invalidate() {
-              // Footer data is pulled during EnhancedEditor.render().
-            },
-            render(): string[] {
-              return [];
-            },
-          };
-        }
-      );
+      ctx.ui.setFooter((tui: TUI, _theme: Theme, footerData: ReadonlyFooterDataProvider) => {
+        runtime.activeFooterData = footerData;
+        const unsub = footerData.onBranchChange(() => tui.requestRender());
+        return {
+          dispose() {
+            unsub();
+            if (runtime.activeFooterData === footerData) {
+              runtime.activeFooterData = null;
+            }
+          },
+          invalidate() {
+            // Footer data is pulled during EnhancedEditor.render().
+          },
+          render(): string[] {
+            return [];
+          },
+        };
+      });
 
       setTimeout(() => {
         warmPreviewHighlighter(config.filePicker.previewHighlightMode);
@@ -180,10 +156,7 @@ export function createPieditorComposition(
       runtime.activeFooterData = null;
     },
 
-    handleToolResult(event: {
-      toolName: string;
-      input?: { command?: unknown };
-    }): void {
+    handleToolResult(event: { toolName: string; input?: { command?: unknown } }): void {
       if (event.toolName === "write" || event.toolName === "edit") {
         invalidateGitStatus();
       }
@@ -203,10 +176,7 @@ export function createPieditorComposition(
       message: { role: string };
       assistantMessageEvent: { type: string };
     }): void {
-      tpsTracker.handleMessageUpdate(
-        event.message,
-        event.assistantMessageEvent
-      );
+      tpsTracker.handleMessageUpdate(event.message, event.assistantMessageEvent);
     },
 
     handleMessageEnd(event: { message: { role: string } }): void {
@@ -231,11 +201,7 @@ export function createPieditorComposition(
     },
 
     async copyEditorBuffer(ctx: ExtensionContext): Promise<void> {
-      if (
-        !ctx.hasUI ||
-        !runtime.activeEditor ||
-        runtime.activeEditorTui?.hasOverlay?.()
-      ) {
+      if (!ctx.hasUI || !runtime.activeEditor || runtime.activeEditorTui?.hasOverlay?.()) {
         ctx.ui.notify("Editor not ready", "warning");
         return;
       }

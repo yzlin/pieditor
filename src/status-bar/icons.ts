@@ -1,7 +1,4 @@
-import type {
-  StatusBarSeparatorDef,
-  StatusBarSeparatorStyle,
-} from "./types.js";
+import type { StatusBarSeparatorDef, StatusBarSeparatorStyle } from "./types.js";
 
 interface IconSet {
   pi: string;
@@ -133,14 +130,10 @@ function getSeparatorChars(): SeparatorChars {
 }
 
 export function getThinkingText(level: string): string | undefined {
-  return hasNerdFonts()
-    ? THINKING_TEXT_NERD[level]
-    : THINKING_TEXT_UNICODE[level];
+  return hasNerdFonts() ? THINKING_TEXT_NERD[level] : THINKING_TEXT_UNICODE[level];
 }
 
-export function getSeparator(
-  style: StatusBarSeparatorStyle
-): StatusBarSeparatorDef {
+export function getSeparator(style: StatusBarSeparatorStyle): StatusBarSeparatorDef {
   const chars = getSeparatorChars();
 
   switch (style) {

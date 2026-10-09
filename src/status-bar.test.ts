@@ -66,7 +66,7 @@ function createStatusBarHarness() {
 }
 
 function renderModelStatusLine(
-  extensionStatuses: readonly (readonly [string, string])[] = []
+  extensionStatuses: readonly (readonly [string, string])[] = [],
 ): string {
   const { ctx, footerData, theme } = createStatusBarHarness();
   const footerDataWithStatuses = {
@@ -224,7 +224,7 @@ describe("status bar", () => {
       expect(layout.bottomContent).toContain("pieditor");
       expect(layout.bottomContent).toContain("main");
       expect(layout.bottomContent.indexOf("pieditor")).toBeLessThan(
-        layout.bottomContent.indexOf("main")
+        layout.bottomContent.indexOf("main"),
       );
     });
 
@@ -285,7 +285,7 @@ describe("status bar", () => {
           config: { enabled: false, preset: "default" },
           sessionStartTime: Date.now(),
           theme,
-        })
+        }),
       ).toEqual({
         topLeftContent: "",
         topRightContent: "",
@@ -298,7 +298,7 @@ describe("status bar", () => {
           config: { enabled: true, preset: "default" },
           sessionStartTime: Date.now(),
           theme,
-        })
+        }),
       ).toEqual({
         topLeftContent: "",
         topRightContent: "",
@@ -441,9 +441,7 @@ describe("status bar", () => {
 
     expect(modelIndex).toBeGreaterThanOrEqual(0);
     expect(contextIndex).toBeGreaterThan(modelIndex + "test-model".length);
-    expect(contextIndex - (modelIndex + "test-model".length)).toBeGreaterThan(
-      1
-    );
+    expect(contextIndex - (modelIndex + "test-model".length)).toBeGreaterThan(1);
     expect(line).not.toContain("main");
   });
 
@@ -813,9 +811,7 @@ describe("status bar", () => {
   });
 
   it("appends applicable fast mode status to the model segment", () => {
-    const line = renderModelStatusLine([
-      [FAST_MODE_STATUS_KEY, FAST_MODE_STATUS_TEXT],
-    ]);
+    const line = renderModelStatusLine([[FAST_MODE_STATUS_KEY, FAST_MODE_STATUS_TEXT]]);
 
     expect(line).toContain("test-model ⚡");
     expect(line).not.toContain("test-model · ⚡");
@@ -823,9 +819,7 @@ describe("status bar", () => {
   });
 
   it("appends unsupported fast mode status to the model segment", () => {
-    const line = renderModelStatusLine([
-      [FAST_MODE_STATUS_KEY, FAST_MODE_UNSUPPORTED_STATUS_TEXT],
-    ]);
+    const line = renderModelStatusLine([[FAST_MODE_STATUS_KEY, FAST_MODE_UNSUPPORTED_STATUS_TEXT]]);
 
     expect(line).toContain("test-model ⚡*");
     expect(line).not.toContain("test-model · ⚡*");

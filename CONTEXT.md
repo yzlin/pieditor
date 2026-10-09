@@ -5,6 +5,7 @@
 `pieditor` is a Pi editor extension that composes multiple custom-editor UX features behind one editor integration so they remain compatible.
 
 Current user-facing feature areas include:
+
 - top-border status bar
 - `@` file picker and preview pane for inserting `@path` references
 - `!` / `!!` shell completions

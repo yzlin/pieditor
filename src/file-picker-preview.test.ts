@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -57,11 +51,7 @@ describe("file picker preview", () => {
 
   it("normalizes tabs in text previews to avoid width drift", () => {
     const root = createTempDir();
-    writeFileSync(
-      join(root, "tabs.ts"),
-      "\tif (ready) {\n\t\treturn ok;\n",
-      "utf8"
-    );
+    writeFileSync(join(root, "tabs.ts"), "\tif (ready) {\n\t\treturn ok;\n", "utf8");
 
     const preview = loadPreviewData({
       cwdRoot: root,
@@ -71,11 +61,7 @@ describe("file picker preview", () => {
       maxBytes: 4096,
     });
 
-    expect(preview.lines).toEqual([
-      " 1 │   if (ready) {",
-      " 2 │     return ok;",
-      " 3 │ ",
-    ]);
+    expect(preview.lines).toEqual([" 1 │   if (ready) {", " 2 │     return ok;", " 3 │ "]);
   });
 
   it("lists directory previews with directories first", () => {
@@ -105,7 +91,7 @@ describe("file picker preview", () => {
 
     const names = Array.from(
       { length: 16 },
-      (_, index) => `agent-${String(index + 1).padStart(2, "0")}.md`
+      (_, index) => `agent-${String(index + 1).padStart(2, "0")}.md`,
     );
     for (const name of names) {
       writeFileSync(join(root, "agents", name), name, "utf8");
@@ -158,10 +144,7 @@ describe("file picker preview", () => {
       kind: "binary",
       title: "image.bin",
       details: "binary • 4 B",
-      lines: [
-        "Binary file preview unavailable.",
-        "Attach to inspect with tools.",
-      ],
+      lines: ["Binary file preview unavailable.", "Attach to inspect with tools."],
     });
   });
 

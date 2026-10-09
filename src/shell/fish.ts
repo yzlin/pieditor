@@ -23,7 +23,7 @@ const TOP_LEVEL_REGEX_1 = /\s+/;
 export function getFishCompletions(
   commandLine: string,
   cwd: string,
-  fishPath: string
+  fishPath: string,
 ): CompletionResult | null {
   // Extract prefix
   const trimmed = commandLine.trimStart();
@@ -35,16 +35,12 @@ export function getFishCompletions(
 
   try {
     // Fish's complete -C gives us completions directly
-    const result = spawnSync(
-      fishPath,
-      ["-c", `complete -C ${JSON.stringify(commandLine)}`],
-      {
-        encoding: "utf-8",
-        timeout: 500,
-        maxBuffer: 1024 * 100,
-        cwd,
-      }
-    );
+    const result = spawnSync(fishPath, ["-c", `complete -C ${JSON.stringify(commandLine)}`], {
+      encoding: "utf-8",
+      timeout: 500,
+      maxBuffer: 1024 * 100,
+      cwd,
+    });
 
     if (result.error || !result.stdout) {
       return null;

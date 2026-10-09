@@ -5,18 +5,7 @@ import type { FileEntry } from "./types.js";
 const TOP_LEVEL_REGEX_1 = /^\/+/;
 const TOP_LEVEL_REGEX_2 = /[*?[\]]/;
 const TOP_LEVEL_REGEX_3 = /\/$/;
-const REGEX_SPECIAL_CHARS = new Set([
-  ".",
-  "+",
-  "^",
-  "$",
-  "{",
-  "}",
-  "(",
-  ")",
-  "|",
-  "\\",
-]);
+const REGEX_SPECIAL_CHARS = new Set([".", "+", "^", "$", "{", "}", "(", ")", "|", "\\"]);
 
 export function isGlobPattern(query: string): boolean {
   return TOP_LEVEL_REGEX_2.test(query);
@@ -102,9 +91,7 @@ export function withQuerySlash(relativePath: string, query: string): string {
   return query.startsWith("/") ? `/${displayPath}` : displayPath;
 }
 
-export function resolveScopedFuzzyQuery(
-  query: string
-): { basePath: string; query: string } | null {
+export function resolveScopedFuzzyQuery(query: string): { basePath: string; query: string } | null {
   const normalizedQuery = stripLeadingSlash(toDisplayPath(query));
   const slashIndex = normalizedQuery.lastIndexOf("/");
   if (slashIndex === -1) {
@@ -117,15 +104,8 @@ export function resolveScopedFuzzyQuery(
   };
 }
 
-export function scoreScopedEntry(
-  filePath: string,
-  query: string,
-  isDirectory: boolean
-): number {
-  const normalizedPath = stripLeadingSlash(toDisplayPath(filePath)).replace(
-    TOP_LEVEL_REGEX_3,
-    ""
-  );
+export function scoreScopedEntry(filePath: string, query: string, isDirectory: boolean): number {
+  const normalizedPath = stripLeadingSlash(toDisplayPath(filePath)).replace(TOP_LEVEL_REGEX_3, "");
   const fileName = path.basename(normalizedPath);
   const lowerFileName = fileName.toLowerCase();
   const lowerPath = normalizedPath.toLowerCase();
@@ -154,17 +134,12 @@ function normalizeCompletionPath(value: string): string {
 
 function isPreferredEntry(entry: FileEntry, preferredPath: string): boolean {
   return (
-    normalizeCompletionPath(
-      withQuerySlash(entry.relativePath, preferredPath)
-    ) === normalizeCompletionPath(preferredPath)
+    normalizeCompletionPath(withQuerySlash(entry.relativePath, preferredPath)) ===
+    normalizeCompletionPath(preferredPath)
   );
 }
 
-function comparePreferredEntry(
-  a: FileEntry,
-  b: FileEntry,
-  preferredPath?: string
-): number {
+function comparePreferredEntry(a: FileEntry, b: FileEntry, preferredPath?: string): number {
   if (!preferredPath) {
     return 0;
   }
@@ -179,7 +154,7 @@ function comparePreferredEntry(
 export function filterEntries(
   entries: FileEntry[],
   query: string,
-  preferredPath?: string
+  preferredPath?: string,
 ): FileEntry[] {
   if (!query.trim()) {
     return entries;
@@ -189,11 +164,7 @@ export function filterEntries(
     const regex = globToRegex(query);
     const filtered = entries.filter((entry) => {
       const displayPath = withQuerySlash(entry.relativePath, query);
-      return (
-        regex.test(entry.name) ||
-        regex.test(entry.relativePath) ||
-        regex.test(displayPath)
-      );
+      return regex.test(entry.name) || regex.test(entry.relativePath) || regex.test(displayPath);
     });
     return filtered.sort((a, b) => {
       const preferredComparison = comparePreferredEntry(a, b, preferredPath);
@@ -210,11 +181,10 @@ export function filterEntries(
       const displayPath = withQuerySlash(entry.relativePath, query);
       const baseScore = Math.max(
         fuzzyScore(query, entry.name),
-        fuzzyScore(query, displayPath) * 0.9
+        fuzzyScore(query, displayPath) * 0.9,
       );
       const scopedScore =
-        scopedQuery &&
-        stripLeadingSlash(displayPath).startsWith(scopedQuery.basePath)
+        scopedQuery && stripLeadingSlash(displayPath).startsWith(scopedQuery.basePath)
           ? scoreScopedEntry(displayPath, scopedQuery.query, entry.isDirectory)
           : 0;
       return {
@@ -224,11 +194,7 @@ export function filterEntries(
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => {
-      const preferredComparison = comparePreferredEntry(
-        a.entry,
-        b.entry,
-        preferredPath
-      );
+      const preferredComparison = comparePreferredEntry(a.entry, b.entry, preferredPath);
       if (preferredComparison !== 0) {
         return preferredComparison;
       }

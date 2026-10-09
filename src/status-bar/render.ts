@@ -38,7 +38,7 @@ interface ComputedStatusRow {
 type StatusRowRenderer = (
   leftSegments: string[],
   rightSegments: string[],
-  mode: StatusBarRenderMode
+  mode: StatusBarRenderMode,
 ) => ComputedStatusRow;
 
 const EMPTY_STATUS_ROW: ComputedStatusRow = {
@@ -51,7 +51,7 @@ const EMPTY_STATUS_ROW: ComputedStatusRow = {
 function renderSegmentContent(
   segId: StatusBarSegmentId,
   ctx: StatusBarContext,
-  mode: StatusBarRenderMode = "normal"
+  mode: StatusBarRenderMode = "normal",
 ): string | null {
   const rendered = renderStatusBarSegment(segId, ctx, mode);
   return rendered.visible && rendered.content ? rendered.content : null;
@@ -62,7 +62,7 @@ function buildContentFromParts(
   presetDef: StatusBarPresetDef,
   theme: Theme,
   colors: ColorScheme,
-  mode: StatusBarRenderMode = "normal"
+  mode: StatusBarRenderMode = "normal",
 ): string {
   if (!parts.length) {
     return "";
@@ -89,7 +89,7 @@ function fitToWidth(content: string, width: number): string {
 function renderVisibleSegments(
   segmentIds: StatusBarSegmentId[],
   ctx: StatusBarContext,
-  mode: StatusBarRenderMode = "normal"
+  mode: StatusBarRenderMode = "normal",
 ): string[] {
   return segmentIds.flatMap((segId) => {
     const content = renderSegmentContent(segId, ctx, mode);
@@ -101,14 +101,14 @@ function renderStatusBarContent(
   segmentIds: StatusBarSegmentId[],
   presetDef: StatusBarPresetDef,
   ctx: StatusBarContext,
-  mode: StatusBarRenderMode = "normal"
+  mode: StatusBarRenderMode = "normal",
 ): string {
   return buildContentFromParts(
     renderVisibleSegments(segmentIds, ctx, mode),
     presetDef,
     ctx.theme,
     ctx.colors,
-    mode
+    mode,
   );
 }
 
@@ -132,16 +132,8 @@ function computeFittingRow(options: {
     return normalRow;
   }
 
-  const compactLeftSegments = renderVisibleSegments(
-    leftSegmentIds,
-    ctx,
-    "compact"
-  );
-  const compactRightSegments = renderVisibleSegments(
-    rightSegmentIds,
-    ctx,
-    "compact"
-  );
+  const compactLeftSegments = renderVisibleSegments(leftSegmentIds, ctx, "compact");
+  const compactRightSegments = renderVisibleSegments(rightSegmentIds, ctx, "compact");
 
   let left = compactLeftSegments;
   let right = compactRightSegments;
@@ -171,16 +163,10 @@ function computeSplitRowContent(
   presetDef: StatusBarPresetDef,
   leftSegmentIds: StatusBarSegmentId[],
   rightSegmentIds: StatusBarSegmentId[],
-  width: number
+  width: number,
 ): ComputedStatusRow {
   const getSide = (segments: string[], mode: StatusBarRenderMode) => {
-    const content = buildContentFromParts(
-      segments,
-      presetDef,
-      ctx.theme,
-      ctx.colors,
-      mode
-    );
+    const content = buildContentFromParts(segments, presetDef, ctx.theme, ctx.colors, mode);
 
     return {
       content,
@@ -239,15 +225,9 @@ function computeRowContent(
   presetDef: StatusBarPresetDef,
   leftSegmentIds: StatusBarSegmentId[],
   rightSegmentIds: StatusBarSegmentId[],
-  width: number
+  width: number,
 ): string {
-  return computeSplitRowContent(
-    ctx,
-    presetDef,
-    leftSegmentIds,
-    rightSegmentIds,
-    width
-  ).content;
+  return computeSplitRowContent(ctx, presetDef, leftSegmentIds, rightSegmentIds, width).content;
 }
 
 function computeUnpaddedRowContent(
@@ -255,7 +235,7 @@ function computeUnpaddedRowContent(
   presetDef: StatusBarPresetDef,
   leftSegmentIds: StatusBarSegmentId[],
   rightSegmentIds: StatusBarSegmentId[],
-  width: number
+  width: number,
 ): string {
   const renderRow: StatusRowRenderer = (left, right, mode) => {
     const content = buildContentFromParts(
@@ -263,7 +243,7 @@ function computeUnpaddedRowContent(
       presetDef,
       ctx.theme,
       ctx.colors,
-      mode
+      mode,
     );
 
     return {
@@ -328,29 +308,24 @@ export function buildStatusBarContext(
   presetDef: StatusBarPresetDef,
   sessionStartTime: number,
   theme: Theme,
-  tokensPerSecond: number | null = null
+  tokensPerSecond: number | null = null,
 ): StatusBarContext {
   const colors: ColorScheme = presetDef.colors ?? getDefaultColors();
   const { usageStats, thinkingLevel } = collectUsageStats(ctx);
   const contextUsage = ctx.getContextUsage?.();
   const contextPercent = contextUsage?.percent ?? 0;
   const model = ctx.model;
-  const contextWindow =
-    contextUsage?.contextWindow ?? model?.contextWindow ?? 0;
+  const contextWindow = contextUsage?.contextWindow ?? model?.contextWindow ?? 0;
   const providerBranch = footerData?.getGitBranch() ?? null;
   const modelRegistry = ctx.modelRegistry as {
     isUsingOAuth?: (model: NonNullable<ExtensionContext["model"]>) => boolean;
   };
-  const usingSubscription = model
-    ? (modelRegistry.isUsingOAuth?.(model) ?? false)
-    : false;
+  const usingSubscription = model ? (modelRegistry.isUsingOAuth?.(model) ?? false) : false;
 
   const hasDedicatedCavemanSegment =
-    presetDef.leftSegments.includes("caveman") ||
-    presetDef.rightSegments.includes("caveman");
+    presetDef.leftSegments.includes("caveman") || presetDef.rightSegments.includes("caveman");
   const hasModelSegment =
-    presetDef.leftSegments.includes("model") ||
-    presetDef.rightSegments.includes("model");
+    presetDef.leftSegments.includes("model") || presetDef.rightSegments.includes("model");
   const dedicatedExtensionStatusKeys = new Set([
     ...(hasDedicatedCavemanSegment ? ["caveman"] : []),
     ...(hasModelSegment ? ["fast"] : []),
@@ -384,15 +359,7 @@ export function buildAmpStatusLayout(options: {
   tokensPerSecond?: number | null;
   width?: number;
 }): AmpStatusLayout {
-  const {
-    ctx,
-    footerData,
-    config,
-    sessionStartTime,
-    theme,
-    tokensPerSecond,
-    width,
-  } = options;
+  const { ctx, footerData, config, sessionStartTime, theme, tokensPerSecond, width } = options;
   if (!(config.enabled && ctx)) {
     return { topLeftContent: "", topRightContent: "", bottomContent: "" };
   }
@@ -404,19 +371,19 @@ export function buildAmpStatusLayout(options: {
     presetDef,
     sessionStartTime,
     theme,
-    tokensPerSecond
+    tokensPerSecond,
   );
   const topLeftSegmentIds = presetDef.leftSegments.filter(
-    (segId) => !AMP_BOTTOM_SEGMENTS.has(segId)
+    (segId) => !AMP_BOTTOM_SEGMENTS.has(segId),
   );
   const topRightSegmentIds = presetDef.rightSegments.filter(
-    (segId) => !AMP_BOTTOM_SEGMENTS.has(segId)
+    (segId) => !AMP_BOTTOM_SEGMENTS.has(segId),
   );
   const bottomLeftSegmentIds = presetDef.leftSegments.filter((segId) =>
-    AMP_BOTTOM_SEGMENTS.has(segId)
+    AMP_BOTTOM_SEGMENTS.has(segId),
   );
   const bottomRightSegmentIds = presetDef.rightSegments.filter((segId) =>
-    AMP_BOTTOM_SEGMENTS.has(segId)
+    AMP_BOTTOM_SEGMENTS.has(segId),
   );
   const contentWidth = typeof width === "number" ? Math.max(width - 2, 0) : null;
 
@@ -426,7 +393,7 @@ export function buildAmpStatusLayout(options: {
       presetDef,
       topLeftSegmentIds,
       topRightSegmentIds,
-      contentWidth
+      contentWidth,
     );
     return {
       topLeftContent: topContent.leftContent,
@@ -436,26 +403,18 @@ export function buildAmpStatusLayout(options: {
         presetDef,
         bottomLeftSegmentIds,
         bottomRightSegmentIds,
-        contentWidth
+        contentWidth,
       ),
     };
   }
 
   return {
-    topLeftContent: renderStatusBarContent(
-      topLeftSegmentIds,
-      presetDef,
-      statusBarContext
-    ),
-    topRightContent: renderStatusBarContent(
-      topRightSegmentIds,
-      presetDef,
-      statusBarContext
-    ),
+    topLeftContent: renderStatusBarContent(topLeftSegmentIds, presetDef, statusBarContext),
+    topRightContent: renderStatusBarContent(topRightSegmentIds, presetDef, statusBarContext),
     bottomContent: renderStatusBarContent(
       [...bottomLeftSegmentIds, ...bottomRightSegmentIds],
       presetDef,
-      statusBarContext
+      statusBarContext,
     ),
   };
 }
@@ -469,15 +428,7 @@ export function renderStatusBarLine(options: {
   theme: Theme;
   tokensPerSecond?: number | null;
 }): string {
-  const {
-    width,
-    ctx,
-    footerData,
-    config,
-    sessionStartTime,
-    theme,
-    tokensPerSecond,
-  } = options;
+  const { width, ctx, footerData, config, sessionStartTime, theme, tokensPerSecond } = options;
   const presetDef = resolveStatusBarPresetDef(config);
   const statusBarContext = buildStatusBarContext(
     ctx,
@@ -485,14 +436,14 @@ export function renderStatusBarLine(options: {
     presetDef,
     sessionStartTime,
     theme,
-    tokensPerSecond
+    tokensPerSecond,
   );
   const content = computeRowContent(
     statusBarContext,
     presetDef,
     presetDef.leftSegments,
     presetDef.rightSegments,
-    width
+    width,
   );
 
   if (!content) {

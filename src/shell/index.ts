@@ -28,12 +28,7 @@ function detectShellType(shellPath: string): ShellType {
 }
 
 function findBashPath(): string | undefined {
-  const bashPaths = [
-    "/bin/bash",
-    "/usr/bin/bash",
-    "/usr/local/bin/bash",
-    "/opt/homebrew/bin/bash",
-  ];
+  const bashPaths = ["/bin/bash", "/usr/bin/bash", "/usr/local/bin/bash", "/opt/homebrew/bin/bash"];
 
   for (const bashPath of bashPaths) {
     if (fs.existsSync(bashPath)) {
@@ -56,12 +51,7 @@ export function findCompletionShell(): ShellInfo {
   }
 
   // If user's shell isn't suitable, prefer fish for best completions
-  const fishPaths = [
-    "/opt/homebrew/bin/fish",
-    "/usr/local/bin/fish",
-    "/usr/bin/fish",
-    "/bin/fish",
-  ];
+  const fishPaths = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish", "/bin/fish"];
   for (const fishPath of fishPaths) {
     if (fs.existsSync(fishPath)) {
       return { path: fishPath, type: "fish" };
@@ -69,12 +59,7 @@ export function findCompletionShell(): ShellInfo {
   }
 
   // Then zsh
-  const zshPaths = [
-    "/bin/zsh",
-    "/usr/bin/zsh",
-    "/usr/local/bin/zsh",
-    "/opt/homebrew/bin/zsh",
-  ];
+  const zshPaths = ["/bin/zsh", "/usr/bin/zsh", "/usr/local/bin/zsh", "/opt/homebrew/bin/zsh"];
   for (const zshPath of zshPaths) {
     if (fs.existsSync(zshPath)) {
       return { path: zshPath, type: "zsh" };
@@ -82,12 +67,7 @@ export function findCompletionShell(): ShellInfo {
   }
 
   // Bash fallback
-  const bashPaths = [
-    "/bin/bash",
-    "/usr/bin/bash",
-    "/usr/local/bin/bash",
-    "/opt/homebrew/bin/bash",
-  ];
+  const bashPaths = ["/bin/bash", "/usr/bin/bash", "/usr/local/bin/bash", "/opt/homebrew/bin/bash"];
   for (const bashPath of bashPaths) {
     if (fs.existsSync(bashPath)) {
       return { path: bashPath, type: "bash" };
@@ -130,7 +110,7 @@ function extractCompletionContext(text: string): {
 export function getShellCompletions(
   text: string,
   cwd: string,
-  shell: ShellInfo
+  shell: ShellInfo,
 ): CompletionResult | null {
   const { commandLine } = extractCompletionContext(text);
 
@@ -149,11 +129,7 @@ export function getShellCompletions(
       // Try bash-completion first as a best-effort fallback for zsh users
       const fallbackBashPath = findBashPath();
       if (fallbackBashPath) {
-        const bashResult = getBashCompletions(
-          commandLine,
-          cwd,
-          fallbackBashPath
-        );
+        const bashResult = getBashCompletions(commandLine, cwd, fallbackBashPath);
         if (bashResult) {
           return bashResult;
         }

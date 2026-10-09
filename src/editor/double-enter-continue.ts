@@ -4,11 +4,12 @@ export const DOUBLE_SUBMIT_CONTINUE_WINDOW_MS = 500;
 
 export function matchesConfiguredSubmit(
   keybindingsManager: KeybindingsManager,
-  data: string
+  data: string,
 ): boolean {
-  const matches = keybindingsManager.matches.bind(
-    keybindingsManager
-  ) as unknown as (input: string, key: string) => boolean;
+  const matches = keybindingsManager.matches.bind(keybindingsManager) as unknown as (
+    input: string,
+    key: string,
+  ) => boolean;
   return matches(data, "tui.input.submit");
 }
 
@@ -41,8 +42,7 @@ export class DoubleSubmitContinue {
   qualifyingSubmit(): "consume" | "continue" {
     const now = this.now();
     const shouldContinue =
-      this.armedAt !== null &&
-      now - this.armedAt < DOUBLE_SUBMIT_CONTINUE_WINDOW_MS;
+      this.armedAt !== null && now - this.armedAt < DOUBLE_SUBMIT_CONTINUE_WINDOW_MS;
 
     this.disarm();
     if (shouldContinue) {

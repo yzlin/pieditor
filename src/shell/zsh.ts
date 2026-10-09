@@ -70,7 +70,7 @@ function parseOutput(output: string): AutocompleteItem[] {
 export function getZshCompletions(
   commandLine: string,
   cwd: string,
-  zshPath: string
+  zshPath: string,
 ): CompletionResult | null {
   // Check if capture script exists
   if (!fs.existsSync(CAPTURE_SCRIPT)) {

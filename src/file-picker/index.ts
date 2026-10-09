@@ -10,10 +10,7 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 
 import { FileBrowserComponent } from "./browser.js";
-import {
-  type FilePickerRuntime,
-  getSharedFilePickerRuntime,
-} from "./runtime.js";
+import { type FilePickerRuntime, getSharedFilePickerRuntime } from "./runtime.js";
 import { inferPreviewThemeMode } from "./theme.js";
 import type { FileBrowserAction } from "./types.js";
 
@@ -23,7 +20,7 @@ export { truncateVisibleText } from "./theme.js";
 
 export async function openFilePicker(
   ui: ExtensionUIContext,
-  runtime: FilePickerRuntime = getSharedFilePickerRuntime()
+  runtime: FilePickerRuntime = getSharedFilePickerRuntime(),
 ): Promise<string> {
   const result = await ui.custom<FileBrowserAction>(
     (_tui, theme, _kb, done) =>
@@ -32,7 +29,7 @@ export async function openFilePicker(
         runtime,
         inferPreviewThemeMode(theme),
         runtime.config.previewHighlightMode,
-        (text) => theme.fg("border", text)
+        (text) => theme.fg("border", text),
       ),
     {
       overlay: true,
@@ -43,7 +40,7 @@ export async function openFilePicker(
         maxHeight: "94%",
         margin: 1,
       },
-    }
+    },
   );
 
   if (!result || result.action === "cancel") {
@@ -54,9 +51,7 @@ export async function openFilePicker(
     return "";
   }
 
-  const refs = paths
-    .map((path) => `@${path.path}${path.isDirectory ? "/" : ""}`)
-    .join(" ");
+  const refs = paths.map((path) => `@${path.path}${path.isDirectory ? "/" : ""}`).join(" ");
   ui.notify(`Added ${paths.length} file${paths.length > 1 ? "s" : ""}`, "info");
   return refs;
 }

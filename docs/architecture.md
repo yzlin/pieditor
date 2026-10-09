@@ -1,6 +1,7 @@
 # pieditor architecture
 
 read_when:
+
 - refactoring `src/index.ts`, `src/composition.ts`, or editor lifecycle wiring
 - changing editor chrome or file-picker runtime/config behavior
 - changing status-bar rendering, footer integration, or git invalidation
@@ -11,6 +12,7 @@ read_when:
 `pieditor` is a composite editor extension. It owns Pi's custom editor component and layers several UX features behind one `setEditorComponent()` integration so they stay compatible. Pi owns the surrounding TUI rendering in both regular and fullscreen modes.
 
 Current feature areas:
+
 - editor lifecycle + shortcut wiring
 - `@` file picker
 - `!` / `!!` shell completions
@@ -26,8 +28,10 @@ Current feature areas:
 ## Ownership boundaries
 
 ### `src/index.ts`
+
 Thin Pi extension entrypoint.
 Owns:
+
 - Pi event registration
 - shortcut registration
 - delegation into composition runtime
@@ -47,8 +51,10 @@ node scripts/test-packed-host-identity.mjs /path/to/@earendil-works/pi-coding-ag
 This test packs and extracts the package, checks the source-only exports and runtime assets, loads the Pi declaration through the supplied host loader, and verifies the created `EnhancedEditor` shares the host `Editor` identity. It creates a temporary `pieditor-packed-identity-*` directory under the operating-system temp directory and reports no live TUI behavior.
 
 ### `src/composition.ts`
+
 Runtime wiring boundary.
 Owns:
+
 - active context/editor/footer refs
 - attaching `EnhancedEditor`
 - footer hookup
@@ -57,8 +63,10 @@ Owns:
 - active prompt editor buffer copy readiness checks and clipboard writes
 
 ### `src/editor/*`
+
 Editor behavior only.
 Owns:
+
 - submit interception and command remap
 - scrolling detached fullscreen transcripts to the bottom immediately before forwarding each non-empty remapped submit
 - double-escape timing/decision logic
@@ -68,8 +76,10 @@ Owns:
 - status-bar insertion above the native editor border
 
 ### `src/file-picker/*`
+
 Picker-specific UI and data flow.
 Owns:
+
 - file listing/filtering/preview/highlighting
 - picker-local state and option toggles
 - converting selections into `@path` refs
@@ -79,8 +89,10 @@ Owns:
 Copy-editor behavior reads `EnhancedEditor.getText()` from the active prompt editor only, never transcript output, selection text, footer/status text, or overlay UI contents. It warns when the editor is not ready, reports `Editor buffer empty` without writing the clipboard for an empty buffer, and otherwise copies raw text through the clipboard hook.
 
 ### `src/status-bar/*`
+
 Status bar rendering.
 Owns:
+
 - context collection
 - preset resolution
 - segment rendering
@@ -91,6 +103,7 @@ Owns:
 The dedicated `caveman` segment is an integration point for the standalone `extensions/caveman` extension. It reads the generic extension status key `caveman` from footer data instead of importing caveman state directly.
 
 ### `src/shell/*`
+
 Shell completion providers and shell detection.
 
 ## Event sources
@@ -120,15 +133,18 @@ Shell completion providers and shell detection.
 ## Config layering
 
 Primary config files:
+
 - global: `~/.pi/agent/pieditor.json`
 - project: `.pi/pieditor.json`
 
 Merge order:
+
 1. built-in defaults
 2. global config
 3. project config
 
 Notes:
+
 - `editorChrome.style: "amp"` changes editor borders only; it does not add Amp non-editor UI, color config, or other Amp features
 - Amp chrome falls back to classic editor lines in very narrow terminals and renders an empty frame when status bar config is disabled
 - `commandRemap` merges by key
@@ -145,6 +161,7 @@ Pi `^0.84.0` is the minimum supported host. Pi owns regular/fullscreen viewport 
 
 Preview highlighting prefers the local Rust/N-API addon when configured for `native` mode.
 Fallback order:
+
 1. native addon
 2. Pi built-in highlighting
 3. plain preview text when highlighting is unavailable

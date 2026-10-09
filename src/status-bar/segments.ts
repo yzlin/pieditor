@@ -15,9 +15,7 @@ import type {
 } from "./types.js";
 
 const TRAILING_STATUS_DECORATION_PATTERN_SOURCE = String.raw`(\u001B\[[0-9;]*m|\s|·|\|)+$`;
-const TRAILING_STATUS_DECORATION_PATTERN = new RegExp(
-  TRAILING_STATUS_DECORATION_PATTERN_SOURCE
-);
+const TRAILING_STATUS_DECORATION_PATTERN = new RegExp(TRAILING_STATUS_DECORATION_PATTERN_SOURCE);
 
 const THINKING_LEVEL_TEXT: Record<string, string> = {
   off: "off",
@@ -28,11 +26,7 @@ const THINKING_LEVEL_TEXT: Record<string, string> = {
   xhigh: "xhigh",
 };
 
-function color(
-  ctx: StatusBarContext,
-  semantic: SemanticColor,
-  text: string
-): string {
+function color(ctx: StatusBarContext, semantic: SemanticColor, text: string): string {
   return fg(ctx.theme, semantic, text, ctx.colors);
 }
 
@@ -109,7 +103,7 @@ function getThinkingLevelText(level: string): string {
 function renderThinkingContent(
   ctx: StatusBarContext,
   level: string,
-  content: string
+  content: string,
 ): RenderedSegment {
   if (level === "high" || level === "xhigh") {
     return { content: rainbow(content), visible: true };
@@ -117,11 +111,7 @@ function renderThinkingContent(
   return { content: color(ctx, "thinking", content), visible: true };
 }
 
-function renderCompactToken(
-  ctx: StatusBarContext,
-  label: string,
-  value: number
-): RenderedSegment {
+function renderCompactToken(ctx: StatusBarContext, label: string, value: number): RenderedSegment {
   if (!value) {
     return { content: "", visible: false };
   }
@@ -288,35 +278,25 @@ const gitSegment: StatusBarSegment = {
     if (gitStatus) {
       const indicators: string[] = [];
       if (opts.showUnstaged !== false && gitStatus.unstaged > 0) {
-        indicators.push(
-          applyColor(ctx.theme, "warning", `*${gitStatus.unstaged}`)
-        );
+        indicators.push(applyColor(ctx.theme, "warning", `*${gitStatus.unstaged}`));
       }
       if (opts.showStaged !== false && gitStatus.staged > 0) {
-        indicators.push(
-          applyColor(ctx.theme, "success", `+${gitStatus.staged}`)
-        );
+        indicators.push(applyColor(ctx.theme, "success", `+${gitStatus.staged}`));
       }
       if (opts.showUntracked !== false && gitStatus.untracked > 0) {
-        indicators.push(
-          applyColor(ctx.theme, "muted", `?${gitStatus.untracked}`)
-        );
+        indicators.push(applyColor(ctx.theme, "muted", `?${gitStatus.untracked}`));
       }
       if (indicators.length > 0) {
         const indicatorText = indicators.join(" ");
         if (!content && showBranch === false) {
-          content =
-            color(ctx, branchColor, icons.git ? `${icons.git} ` : "") +
-            indicatorText;
+          content = color(ctx, branchColor, icons.git ? `${icons.git} ` : "") + indicatorText;
         } else {
           content += content ? ` ${indicatorText}` : indicatorText;
         }
       }
     }
 
-    return content
-      ? { content, visible: true }
-      : { content: "", visible: false };
+    return content ? { content, visible: true } : { content: "", visible: false };
   },
   renderCompact(ctx) {
     const opts = ctx.options.git ?? {};
@@ -351,11 +331,7 @@ const thinkingSegment: StatusBarSegment = {
   id: "thinking",
   render(ctx) {
     const level = ctx.thinkingLevel || "off";
-    return renderThinkingContent(
-      ctx,
-      level,
-      `think:${getThinkingLevelText(level)}`
-    );
+    return renderThinkingContent(ctx, level, `think:${getThinkingLevelText(level)}`);
   },
   renderCompact(ctx) {
     const level = ctx.thinkingLevel || "off";
@@ -399,11 +375,7 @@ const tokenInSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return {
-      content: color(
-        ctx,
-        "tokens",
-        withIcon(icons.input, formatTokens(ctx.usageStats.input))
-      ),
+      content: color(ctx, "tokens", withIcon(icons.input, formatTokens(ctx.usageStats.input))),
       visible: true,
     };
   },
@@ -420,11 +392,7 @@ const tokenOutSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return {
-      content: color(
-        ctx,
-        "tokens",
-        withIcon(icons.output, formatTokens(ctx.usageStats.output))
-      ),
+      content: color(ctx, "tokens", withIcon(icons.output, formatTokens(ctx.usageStats.output))),
       visible: true,
     };
   },
@@ -442,11 +410,7 @@ const tokenTotalSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return {
-      content: color(
-        ctx,
-        "tokens",
-        withIcon(icons.tokens, formatTokens(total))
-      ),
+      content: color(ctx, "tokens", withIcon(icons.tokens, formatTokens(total))),
       visible: true,
     };
   },
@@ -466,10 +430,7 @@ const tpsSegment: StatusBarSegment = {
       content: color(
         ctx,
         "tokens",
-        withIcon(
-          icons.speed,
-          `${formatTokensPerSecond(ctx.tokensPerSecond)} tok/s`
-        )
+        withIcon(icons.speed, `${formatTokensPerSecond(ctx.tokensPerSecond)} tok/s`),
       ),
       visible: true,
     };
@@ -479,11 +440,7 @@ const tpsSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return {
-      content: color(
-        ctx,
-        "tokens",
-        `${formatTokensPerSecond(ctx.tokensPerSecond)}t/s`
-      ),
+      content: color(ctx, "tokens", `${formatTokensPerSecond(ctx.tokensPerSecond)}t/s`),
       visible: true,
     };
   },
@@ -554,11 +511,7 @@ const contextTotalSegment: StatusBarSegment = {
       return { content: "", visible: false };
     }
     return {
-      content: color(
-        ctx,
-        "context",
-        withIcon(icons.context, formatTokens(ctx.contextWindow))
-      ),
+      content: color(ctx, "context", withIcon(icons.context, formatTokens(ctx.contextWindow))),
       visible: true,
     };
   },
@@ -647,7 +600,7 @@ const cacheReadSegment: StatusBarSegment = {
         "tokens",
         [icons.cache, icons.input, formatTokens(ctx.usageStats.cacheRead)]
           .filter(Boolean)
-          .join(" ")
+          .join(" "),
       ),
       visible: true,
     };
@@ -670,7 +623,7 @@ const cacheWriteSegment: StatusBarSegment = {
         "tokens",
         [icons.cache, icons.output, formatTokens(ctx.usageStats.cacheWrite)]
           .filter(Boolean)
-          .join(" ")
+          .join(" "),
       ),
       visible: true,
     };
@@ -680,11 +633,7 @@ const cacheWriteSegment: StatusBarSegment = {
   },
 };
 
-function shouldRenderExtensionStatus(
-  ctx: StatusBarContext,
-  key: string,
-  value: string
-): boolean {
+function shouldRenderExtensionStatus(ctx: StatusBarContext, key: string, value: string): boolean {
   if (ctx.dedicatedExtensionStatusKeys.has(key)) {
     return false;
   }
@@ -767,7 +716,7 @@ const SEGMENTS: Record<StatusBarSegmentId, StatusBarSegment> = {
 export function renderStatusBarSegment(
   id: StatusBarSegmentId,
   ctx: StatusBarContext,
-  mode: StatusBarRenderMode = "normal"
+  mode: StatusBarRenderMode = "normal",
 ): RenderedSegment {
   const segment = SEGMENTS[id];
   if (!segment) {

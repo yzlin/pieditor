@@ -19,9 +19,7 @@ export const DEFAULT_FILE_PICKER_CONFIG: PickerRuntimeConfig = {
 };
 
 export function normalizeTabCompletionMode(value: unknown): TabCompletionMode {
-  return value === "segment" || value === "bestMatch"
-    ? value
-    : DEFAULT_TAB_COMPLETION_MODE;
+  return value === "segment" || value === "bestMatch" ? value : DEFAULT_TAB_COMPLETION_MODE;
 }
 
 function normalizeSkipPatterns(value: unknown): string[] | undefined {
@@ -37,17 +35,11 @@ function normalizeSkipPatterns(value: unknown): string[] | undefined {
   return skipPatterns;
 }
 
-export function normalizePreviewHighlightMode(
-  value: unknown
-): PreviewHighlightMode {
-  return value === "builtin" || value === "native"
-    ? value
-    : DEFAULT_PREVIEW_HIGHLIGHT_MODE;
+export function normalizePreviewHighlightMode(value: unknown): PreviewHighlightMode {
+  return value === "builtin" || value === "native" ? value : DEFAULT_PREVIEW_HIGHLIGHT_MODE;
 }
 
-export function normalizeFilePickerConfig(
-  value: unknown
-): Partial<PickerRuntimeConfig> {
+export function normalizeFilePickerConfig(value: unknown): Partial<PickerRuntimeConfig> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }
@@ -78,15 +70,11 @@ export function normalizeFilePickerConfig(
   }
 
   if (Object.hasOwn(parsed, "tabCompletionMode")) {
-    next.tabCompletionMode = normalizeTabCompletionMode(
-      parsed.tabCompletionMode
-    );
+    next.tabCompletionMode = normalizeTabCompletionMode(parsed.tabCompletionMode);
   }
 
   if (Object.hasOwn(parsed, "previewHighlightMode")) {
-    next.previewHighlightMode = normalizePreviewHighlightMode(
-      parsed.previewHighlightMode
-    );
+    next.previewHighlightMode = normalizePreviewHighlightMode(parsed.previewHighlightMode);
   }
 
   return next;
@@ -110,8 +98,7 @@ export function mergeFilePickerConfigs(
       ...config,
       skipPatterns: config.skipPatterns ?? merged.skipPatterns,
       tabCompletionMode: config.tabCompletionMode ?? merged.tabCompletionMode,
-      previewHighlightMode:
-        config.previewHighlightMode ?? merged.previewHighlightMode,
+      previewHighlightMode: config.previewHighlightMode ?? merged.previewHighlightMode,
     };
   }
 

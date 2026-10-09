@@ -1,8 +1,5 @@
 const TOP_LEVEL_REGEX_1 = /^\/([^\s:]+)(.*)/s;
-export function remapCommand(
-  text: string,
-  commandRemap: Record<string, string>
-): string {
+export function remapCommand(text: string, commandRemap: Record<string, string>): string {
   const trimmed = text.trimStart();
   if (!trimmed.startsWith("/")) {
     return text;

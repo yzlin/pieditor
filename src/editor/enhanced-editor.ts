@@ -5,11 +5,7 @@ import {
   type KeybindingsManager,
   type ReadonlyFooterDataProvider,
 } from "@earendil-works/pi-coding-agent";
-import type {
-  AutocompleteProvider,
-  EditorTheme,
-  TUI,
-} from "@earendil-works/pi-tui";
+import type { AutocompleteProvider, EditorTheme, TUI } from "@earendil-works/pi-tui";
 import { getText } from "@mariozechner/clipboard";
 
 import type {
@@ -19,10 +15,7 @@ import type {
 } from "../config/index.js";
 import { openFilePicker } from "../file-picker/index.js";
 import { findCompletionShell, type ShellInfo } from "../shell/index.js";
-import {
-  buildAmpStatusLayout,
-  renderStatusBarLine,
-} from "../status-bar/index.js";
+import { buildAmpStatusLayout, renderStatusBarLine } from "../status-bar/index.js";
 import {
   AMP_BODY_HORIZONTAL_CHROME_WIDTH,
   MIN_AMP_WIDTH,
@@ -30,10 +23,7 @@ import {
 } from "./amp-chrome.js";
 import { wrapProviderWithShellAndAtFiltering } from "./autocomplete.js";
 import { remapCommand } from "./command-remap.js";
-import {
-  DoubleSubmitContinue,
-  matchesConfiguredSubmit,
-} from "./double-enter-continue.js";
+import { DoubleSubmitContinue, matchesConfiguredSubmit } from "./double-enter-continue.js";
 import {
   consumeDoubleEscape,
   matchesInterrupt,
@@ -73,10 +63,7 @@ interface EnhancedEditorOptions {
 
 const VALID_PASTE_MARKER = /^\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]$/;
 const PASTE_MARKER_TOKEN = /\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]/;
-const ANSI_SGR_PATTERN = new RegExp(
-  `${String.fromCharCode(27)}\\[[0-9;]*m`,
-  "g"
-);
+const ANSI_SGR_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
 function insertedText(before: string, after: string): string | null {
   let prefixLength = 0;
@@ -92,8 +79,7 @@ function insertedText(before: string, after: string): string | null {
   while (
     suffixLength < before.length - prefixLength &&
     suffixLength < after.length - prefixLength &&
-    before[before.length - 1 - suffixLength] ===
-      after[after.length - 1 - suffixLength]
+    before[before.length - 1 - suffixLength] === after[after.length - 1 - suffixLength]
   ) {
     suffixLength += 1;
   }
@@ -107,7 +93,7 @@ function insertedText(before: string, after: string): string | null {
 function insertedTextAtOffset(
   before: string,
   after: string,
-  insertionOffset: number
+  insertionOffset: number,
 ): string | null {
   const insertionLength = after.length - before.length;
   if (
@@ -115,18 +101,14 @@ function insertedTextAtOffset(
     insertionOffset < 0 ||
     insertionOffset > before.length ||
     after.slice(0, insertionOffset) !== before.slice(0, insertionOffset) ||
-    after.slice(insertionOffset + insertionLength) !==
-      before.slice(insertionOffset)
+    after.slice(insertionOffset + insertionLength) !== before.slice(insertionOffset)
   ) {
     return null;
   }
   return after.slice(insertionOffset, insertionOffset + insertionLength);
 }
 
-function cursorOffset(
-  text: string,
-  cursor: { line: number; col: number }
-): number | null {
+function cursorOffset(text: string, cursor: { line: number; col: number }): number | null {
   const lines = text.split("\n");
   const line = lines[cursor.line];
   if (line === undefined || cursor.col < 0 || cursor.col > line.length) {
@@ -148,17 +130,14 @@ function didCreateNativePasteMarker(options: {
   const marker = insertedTextAtOffset(
     options.beforeText,
     options.afterText,
-    options.insertionOffset
+    options.insertionOffset,
   );
-  const expandedInsertion = insertedText(
-    options.beforeExpandedText,
-    options.afterExpandedText
-  );
+  const expandedInsertion = insertedText(options.beforeExpandedText, options.afterExpandedText);
   return Boolean(
     marker &&
-      VALID_PASTE_MARKER.test(marker) &&
-      expandedInsertion !== null &&
-      expandedInsertion !== marker
+    VALID_PASTE_MARKER.test(marker) &&
+    expandedInsertion !== null &&
+    expandedInsertion !== marker,
   );
 }
 
@@ -192,7 +171,7 @@ export class EnhancedEditor extends CustomEditor {
     keybindings: KeybindingsManager,
     ui: ExtensionUIContext,
     options: EnhancedEditorOptions,
-    keybindingsManager: KeybindingsManager = keybindings
+    keybindingsManager: KeybindingsManager = keybindings,
   ) {
     super(tui, theme, keybindings);
     this.tuiInstance = tui;
@@ -226,10 +205,7 @@ export class EnhancedEditor extends CustomEditor {
       set: (fn: ((text: string) => void) | undefined) => {
         this.submitHandler = fn
           ? (text: string) => {
-              const remappedText = remapCommand(
-                text,
-                this.options.commandRemap
-              );
+              const remappedText = remapCommand(text, this.options.commandRemap);
               const tui = this.tuiInstance;
               if (
                 text !== "" &&
@@ -316,10 +292,7 @@ export class EnhancedEditor extends CustomEditor {
     }
     this.doubleSubmitContinue.nonSubmitInput();
 
-    if (
-      this.options.doublePaste.enabled &&
-      this.handleBracketedPasteInput(data)
-    ) {
+    if (this.options.doublePaste.enabled && this.handleBracketedPasteInput(data)) {
       return;
     }
 
@@ -331,8 +304,7 @@ export class EnhancedEditor extends CustomEditor {
         keybindingsManager: this.keybindingsManager,
         isShowingAutocomplete: this.isShowingAutocomplete(),
         editorText: this.getText(),
-        canTriggerDoubleEscapeCommand:
-          this.options.canTriggerDoubleEscapeCommand(),
+        canTriggerDoubleEscapeCommand: this.options.canTriggerDoubleEscapeCommand(),
       })
     ) {
       this.handleConfiguredDoubleEscape(doubleEscapeCommand);
@@ -368,18 +340,12 @@ export class EnhancedEditor extends CustomEditor {
   }
 
   private handleBracketedPasteInput(data: string): boolean {
-    if (
-      this.bracketedPasteBuffer === null &&
-      !data.startsWith(BRACKETED_PASTE_START)
-    ) {
+    if (this.bracketedPasteBuffer === null && !data.startsWith(BRACKETED_PASTE_START)) {
       return false;
     }
 
     const buffered = (this.bracketedPasteBuffer ?? "") + data;
-    const endIndex = buffered.indexOf(
-      BRACKETED_PASTE_END,
-      BRACKETED_PASTE_START.length
-    );
+    const endIndex = buffered.indexOf(BRACKETED_PASTE_END, BRACKETED_PASTE_START.length);
     if (endIndex === -1) {
       this.bracketedPasteBuffer = buffered;
       return true;
@@ -451,10 +417,7 @@ export class EnhancedEditor extends CustomEditor {
     this.allowAndConfirmNativePaste(data, retry.state);
   }
 
-  private allowAndConfirmNativePaste(
-    data: string,
-    pendingState: DoublePasteState
-  ): void {
+  private allowAndConfirmNativePaste(data: string, pendingState: DoublePasteState): void {
     let beforeExpandedText: string;
     try {
       beforeExpandedText = this.getExpandedText();
@@ -540,9 +503,7 @@ export class EnhancedEditor extends CustomEditor {
     editorLines: string[];
   } {
     if (this.options.editorChrome.style === "amp" && width >= MIN_AMP_WIDTH) {
-      const baseEditorLines = this.renderEditorLines(
-        width - AMP_BODY_HORIZONTAL_CHROME_WIDTH
-      );
+      const baseEditorLines = this.renderEditorLines(width - AMP_BODY_HORIZONTAL_CHROME_WIDTH);
       return {
         editorLines: renderAmpEditorChrome({
           width,
@@ -559,9 +520,7 @@ export class EnhancedEditor extends CustomEditor {
     const editorLines = this.doubleSubmitContinue.isArmed()
       ? baseEditorLines.map((line) => {
           const plain = line.replace(ANSI_SGR_PATTERN, "");
-          return plain.startsWith("─")
-            ? this.ui.theme.fg("warning", plain)
-            : line;
+          return plain.startsWith("─") ? this.ui.theme.fg("warning", plain) : line;
         })
       : baseEditorLines;
     const statusLine = this.renderStatusLine(width, baseEditorLines);
@@ -625,15 +584,8 @@ export class EnhancedEditor extends CustomEditor {
     });
   }
 
-  private renderStatusLine(
-    width: number,
-    editorLines: string[]
-  ): string | null {
-    if (
-      !this.options.statusBar.config.enabled ||
-      width < 10 ||
-      editorLines.length === 0
-    ) {
+  private renderStatusLine(width: number, editorLines: string[]): string | null {
+    if (!this.options.statusBar.config.enabled || width < 10 || editorLines.length === 0) {
       return null;
     }
 

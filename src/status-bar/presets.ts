@@ -28,10 +28,7 @@ const NERD_COLORS: ColorScheme = {
   cost: "warning",
 };
 
-export const STATUS_BAR_PRESETS: Record<
-  StatusBarPreset,
-  BuiltinStatusBarPresetDef
-> = {
+export const STATUS_BAR_PRESETS: Record<StatusBarPreset, BuiltinStatusBarPresetDef> = {
   default: {
     leftSegments: [
       "pi",
@@ -89,15 +86,7 @@ export const STATUS_BAR_PRESETS: Record<
     },
   },
   full: {
-    leftSegments: [
-      "pi",
-      "hostname",
-      "model",
-      "thinking",
-      "caveman",
-      "path",
-      "git",
-    ],
+    leftSegments: ["pi", "hostname", "model", "thinking", "caveman", "path", "git"],
     rightSegments: [
       "token_in",
       "token_out",
@@ -124,16 +113,7 @@ export const STATUS_BAR_PRESETS: Record<
     },
   },
   nerd: {
-    leftSegments: [
-      "pi",
-      "hostname",
-      "model",
-      "thinking",
-      "caveman",
-      "path",
-      "git",
-      "session",
-    ],
+    leftSegments: ["pi", "hostname", "model", "thinking", "caveman", "path", "git", "session"],
     rightSegments: [
       "token_in",
       "token_out",
@@ -179,9 +159,7 @@ export const STATUS_BAR_PRESETS: Record<
   },
 };
 
-export function getStatusBarPreset(
-  name: StatusBarPreset
-): BuiltinStatusBarPresetDef {
+export function getStatusBarPreset(name: StatusBarPreset): BuiltinStatusBarPresetDef {
   return STATUS_BAR_PRESETS[name] ?? STATUS_BAR_PRESETS.default;
 }
 
@@ -201,9 +179,6 @@ export function resolveStatusBarPresetDef(config: {
     rightSegments: config.rightSegments ?? preset.rightSegments,
     separator: config.separator ?? ` ${getSeparator(preset.separator).left} `,
     colors: { ...preset.colors, ...config.colors },
-    segmentOptions: mergeStatusBarSegmentOptions(
-      preset.segmentOptions,
-      config.segmentOptions
-    ),
+    segmentOptions: mergeStatusBarSegmentOptions(preset.segmentOptions, config.segmentOptions),
   };
 }

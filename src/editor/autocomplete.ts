@@ -1,13 +1,6 @@
-import type {
-  AutocompleteItem,
-  AutocompleteProvider,
-} from "@earendil-works/pi-tui";
+import type { AutocompleteItem, AutocompleteProvider } from "@earendil-works/pi-tui";
 
-import {
-  type CompletionResult,
-  getShellCompletions,
-  type ShellInfo,
-} from "../shell/index.js";
+import { type CompletionResult, getShellCompletions, type ShellInfo } from "../shell/index.js";
 
 const TOP_LEVEL_REGEX_1 = /(?:^|[\s])@[^\s]*$/;
 
@@ -28,14 +21,14 @@ interface CompatibleAutocompleteProvider {
     lines: string[],
     cursorLine: number,
     cursorCol: number,
-    options?: AutocompleteRequestOptions
+    options?: AutocompleteRequestOptions,
   ) => Awaitable<AutocompleteSuggestionResult>;
   applyCompletion: (
     lines: string[],
     cursorLine: number,
     cursorCol: number,
     item: AutocompleteItem,
-    prefix: string
+    prefix: string,
   ) => {
     lines: string[];
     cursorLine: number;
@@ -44,19 +37,15 @@ interface CompatibleAutocompleteProvider {
   getForceFileSuggestions?: (
     lines: string[],
     cursorLine: number,
-    cursorCol: number
+    cursorCol: number,
   ) => AutocompleteSuggestionResult;
-  shouldTriggerFileCompletion?: (
-    lines: string[],
-    cursorLine: number,
-    cursorCol: number
-  ) => boolean;
+  shouldTriggerFileCompletion?: (lines: string[], cursorLine: number, cursorCol: number) => boolean;
 }
 
 export function isAtCompletionContext(
   lines: string[],
   cursorLine: number,
-  cursorCol: number
+  cursorCol: number,
 ): boolean {
   const line = lines[cursorLine] ?? "";
   const beforeCursor = line.slice(0, cursorCol);
@@ -71,16 +60,13 @@ export function isBashMode(lines: string[]): boolean {
 export function extractCompletionTextUpToCursor(
   lines: string[],
   cursorLine: number,
-  cursorCol: number
+  cursorCol: number,
 ): string {
   const textLines = lines.slice(0, cursorLine + 1);
   const lastLineIndex = textLines.length - 1;
 
   if (lastLineIndex >= 0) {
-    textLines[lastLineIndex] = (textLines[lastLineIndex] ?? "").slice(
-      0,
-      cursorCol
-    );
+    textLines[lastLineIndex] = (textLines[lastLineIndex] ?? "").slice(0, cursorCol);
   }
 
   return textLines.join("\n");
@@ -90,7 +76,7 @@ function getBashSuggestions(
   lines: string[],
   cursorLine: number,
   cursorCol: number,
-  shell: ShellInfo
+  shell: ShellInfo,
 ): CompletionResult | null {
   const text = extractCompletionTextUpToCursor(lines, cursorLine, cursorCol);
   return getShellCompletions(text, process.cwd(), shell);
@@ -98,17 +84,16 @@ function getBashSuggestions(
 
 export function wrapProviderWithShellAndAtFiltering(
   provider: AutocompleteProvider,
-  shell: ShellInfo
+  shell: ShellInfo,
 ): AutocompleteProvider {
-  const compatibleProvider =
-    provider as unknown as CompatibleAutocompleteProvider;
+  const compatibleProvider = provider as unknown as CompatibleAutocompleteProvider;
 
   const wrappedProvider: CompatibleAutocompleteProvider = {
     getSuggestions(
       lines: string[],
       cursorLine: number,
       cursorCol: number,
-      options?: AutocompleteRequestOptions
+      options?: AutocompleteRequestOptions,
     ): Awaitable<AutocompleteSuggestionResult> {
       if (isAtCompletionContext(lines, cursorLine, cursorCol)) {
         return null;
@@ -132,7 +117,7 @@ export function wrapProviderWithShellAndAtFiltering(
       cursorLine: number,
       cursorCol: number,
       item: AutocompleteItem,
-      prefix: string
+      prefix: string,
     ): { lines: string[]; cursorLine: number; cursorCol: number } {
       if (isBashMode(lines)) {
         const currentLine = lines[cursorLine] || "";
@@ -153,47 +138,29 @@ export function wrapProviderWithShellAndAtFiltering(
         };
       }
 
-      return provider.applyCompletion(
-        lines,
-        cursorLine,
-        cursorCol,
-        item,
-        prefix
-      );
+      return provider.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
     },
 
     getForceFileSuggestions(
       lines: string[],
       cursorLine: number,
-      cursorCol: number
+      cursorCol: number,
     ): AutocompleteSuggestionResult {
       if (isBashMode(lines)) {
         return getBashSuggestions(lines, cursorLine, cursorCol, shell);
       }
       if (compatibleProvider.getForceFileSuggestions) {
-        return compatibleProvider.getForceFileSuggestions(
-          lines,
-          cursorLine,
-          cursorCol
-        );
+        return compatibleProvider.getForceFileSuggestions(lines, cursorLine, cursorCol);
       }
       return null;
     },
 
-    shouldTriggerFileCompletion(
-      lines: string[],
-      cursorLine: number,
-      cursorCol: number
-    ): boolean {
+    shouldTriggerFileCompletion(lines: string[], cursorLine: number, cursorCol: number): boolean {
       if (isBashMode(lines)) {
         return true;
       }
       if (compatibleProvider.shouldTriggerFileCompletion) {
-        return compatibleProvider.shouldTriggerFileCompletion(
-          lines,
-          cursorLine,
-          cursorCol
-        );
+        return compatibleProvider.shouldTriggerFileCompletion(lines, cursorLine, cursorCol);
       }
       return true;
     },

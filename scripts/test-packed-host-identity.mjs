@@ -7,7 +7,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const loaderArgument = process.argv[2] ?? process.env.PI_EXTENSION_LOADER;
-assert(loaderArgument, "Pass the host's dist/core/extensions/loader.js path, or set PI_EXTENSION_LOADER");
+assert(
+  loaderArgument,
+  "Pass the host's dist/core/extensions/loader.js path, or set PI_EXTENSION_LOADER",
+);
 const loaderPath = resolve(loaderArgument);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const temporary = await mkdtemp(join(tmpdir(), "pieditor-packed-identity-"));
@@ -50,7 +53,9 @@ for (const required of [
 const packedPaths = (await readdir(extracted, { recursive: true })).map(String);
 for (const removedDirectory of ["dist", "types", "schema"]) {
   assert.equal(
-    packedPaths.some((path) => path === removedDirectory || path.startsWith(`${removedDirectory}/`)),
+    packedPaths.some(
+      (path) => path === removedDirectory || path.startsWith(`${removedDirectory}/`),
+    ),
     false,
     `packed artifact must not contain ${removedDirectory}`,
   );
@@ -64,7 +69,12 @@ for (const dependency of ["ignore", "@mariozechner/clipboard"]) {
   await mkdir(dirname(destination), { recursive: true });
   await cp(source, destination, { recursive: true });
 }
-for (const platformDependency of ["clipboard-darwin-arm64", "clipboard-darwin-universal", "clipboard-linux-x64-gnu", "clipboard-win32-x64-msvc"]) {
+for (const platformDependency of [
+  "clipboard-darwin-arm64",
+  "clipboard-darwin-universal",
+  "clipboard-linux-x64-gnu",
+  "clipboard-win32-x64-msvc",
+]) {
   const source = join(root, "node_modules", "@mariozechner", platformDependency);
   try {
     const destination = join(extracted, "node_modules", "@mariozechner", platformDependency);
@@ -81,19 +91,28 @@ try {
 } catch (error) {
   if (error?.code !== "ENOENT") throw error;
 }
-if (await stat(join(root, "native/syntect-picker-preview", nativeName)).then(() => true, () => false)) {
+if (
+  await stat(join(root, "native/syntect-picker-preview", nativeName)).then(
+    () => true,
+    () => false,
+  )
+) {
   await readFile(join(extracted, "native/syntect-picker-preview", nativeName));
 }
 
 const packedRequire = createRequire(join(extracted, "package.json"));
 assert.throws(
   () => packedRequire.resolve("@earendil-works/pi-tui"),
-  "packed dependency tree must not contain a private host TUI copy"
+  "packed dependency tree must not contain a private host TUI copy",
 );
 
 const { loadExtensions } = await import(pathToFileURL(loaderPath).href);
 const loaded = await loadExtensions([join(extracted, manifest.pi.extensions[0])], extracted);
-assert.deepEqual(loaded.errors, [], `packed extension load errors: ${JSON.stringify(loaded.errors)}`);
+assert.deepEqual(
+  loaded.errors,
+  [],
+  `packed extension load errors: ${JSON.stringify(loaded.errors)}`,
+);
 assert.equal(loaded.extensions.length, 1);
 
 const hostRequire = createRequire(loaderPath);
@@ -101,7 +120,9 @@ const { Editor } = await import(pathToFileURL(hostRequire.resolve("@earendil-wor
 let editorFactory;
 const ui = {
   notify() {},
-  setEditorComponent(factory) { editorFactory = factory; },
+  setEditorComponent(factory) {
+    editorFactory = factory;
+  },
   setFooter() {},
 };
 const ctx = {
@@ -116,6 +137,10 @@ assert.equal(handlers.length, 1);
 await handlers[0]({ reason: "startup" }, ctx);
 assert.equal(typeof editorFactory, "function");
 const editor = editorFactory({ requestRender() {} }, {}, {});
-assert.equal(editor instanceof Editor, true, "packed editor must share the actual host Editor identity");
+assert.equal(
+  editor instanceof Editor,
+  true,
+  "packed editor must share the actual host Editor identity",
+);
 assert.equal(editor.constructor.name, "EnhancedEditor");
 console.log(`packed host identity passed: ${filename}`);

@@ -56,13 +56,10 @@ describe("file picker native preview highlighting", () => {
     const highlighted = highlightPreviewLines(
       [" 1 │ const answer = 42;", " 2 │ return answer;"],
       "example.ts",
-      "light"
+      "light",
     );
 
-    expect(highlighted.map(stripAnsi)).toEqual([
-      " 1 │ <ansi const>",
-      " 2 │ <ansi return>",
-    ]);
+    expect(highlighted.map(stripAnsi)).toEqual([" 1 │ <ansi const>", " 2 │ <ansi return>"]);
     expect(highlighted[0]).toContain(BAT_LINE_NUMBER_COLOR);
     expect(highlighted[0]).toContain(BAT_DIVIDER_COLOR);
   });
@@ -80,7 +77,7 @@ describe("file picker native preview highlighting", () => {
 
     const highlighted = highlightPreviewLines(
       [" 1 │ const answer = 42;", " 2 │ return answer;"],
-      "example.ts"
+      "example.ts",
     );
 
     expect(highlighted).toHaveLength(2);
@@ -106,7 +103,7 @@ describe("file picker native preview highlighting", () => {
 
     const highlighted = highlightPreviewLines(
       [" 1 │ ---", " 2 │ name: session-query", " 3 │ "],
-      "@skills/session-query/SKILL.md"
+      "@skills/session-query/SKILL.md",
     );
 
     expect(highlighted.map(stripAnsi)).toEqual([
@@ -127,7 +124,7 @@ describe("file picker native preview highlighting", () => {
       " 1 │ const answer = 42;",
       "example.ts",
       "dark",
-      "builtin"
+      "builtin",
     );
 
     expect(stripAnsi(highlighted)).toBe(" 1 │ const answer = 42;");
@@ -139,10 +136,7 @@ describe("file picker native preview highlighting", () => {
   it("keeps gutter colors for unrecognized file types", () => {
     setNativeHighlightBindingLoaderForTests(() => null);
 
-    const highlighted = highlightPreviewLine(
-      " 1 │ just some text",
-      "notes.unknownext"
-    );
+    const highlighted = highlightPreviewLine(" 1 │ just some text", "notes.unknownext");
 
     expect(stripAnsi(highlighted)).toBe(" 1 │ just some text");
     expect(highlighted).toContain(BAT_LINE_NUMBER_COLOR);
@@ -156,23 +150,20 @@ describe("file picker native preview highlighting", () => {
       },
     }));
 
-    expect(
-      highlightPreviewLines(["… preview truncated"], "example.ts")
-    ).toEqual(["… preview truncated"]);
+    expect(highlightPreviewLines(["… preview truncated"], "example.ts")).toEqual([
+      "… preview truncated",
+    ]);
   });
 
   it("resolves the native binding module from the moved file-picker folder", () => {
     const resolvedPath = resolveNativeHighlightBindingPathForTests();
 
     expect(resolvedPath).not.toBeNull();
-    expect(
-      resolvedPath?.endsWith("native/syntect-picker-preview/index.js")
-    ).toBe(true);
+    expect(resolvedPath?.endsWith("native/syntect-picker-preview/index.js")).toBe(true);
   });
 
   it("warms the native binding once for both theme modes", () => {
-    const calls: Array<{ themeMode?: "dark" | "light" | null; code: string }> =
-      [];
+    const calls: Array<{ themeMode?: "dark" | "light" | null; code: string }> = [];
 
     setNativeHighlightBindingLoaderForTests(() => ({
       highlightPreview(input) {

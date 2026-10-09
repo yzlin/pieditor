@@ -16,10 +16,7 @@ export function getCwdRoot(): string {
 function isPathWithinRoot(targetPath: string, rootPath: string): boolean {
   const resolvedTarget = path.resolve(targetPath);
   const resolvedRoot = path.resolve(rootPath);
-  return (
-    resolvedTarget === resolvedRoot ||
-    resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)
-  );
+  return resolvedTarget === resolvedRoot || resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`);
 }
 
 export function isWithinCwd(targetPath: string, cwdRoot: string): boolean {
@@ -51,13 +48,12 @@ function toGitPath(value: string): string {
 function shouldSkipRelativePath(
   relativePath: string,
   skipHidden: boolean,
-  skipPatterns: string[]
+  skipPatterns: string[],
 ): boolean {
   const segments = toGitPath(relativePath).split("/").filter(Boolean);
   return segments.some(
     (segment) =>
-      (skipHidden && segment.startsWith(".")) ||
-      shouldSkipPattern(segment, skipPatterns)
+      (skipHidden && segment.startsWith(".")) || shouldSkipPattern(segment, skipPatterns),
   );
 }
 
@@ -68,10 +64,7 @@ function loadIgnoreFile(filePath: string): string[] {
   return fs.readFileSync(filePath, "utf-8").split(TOP_LEVEL_REGEX_1);
 }
 
-function resolveDirentDirectoryStatus(
-  fullPath: string,
-  item: fs.Dirent
-): boolean | null {
+function resolveDirentDirectoryStatus(fullPath: string, item: fs.Dirent): boolean | null {
   if (!item.isSymbolicLink()) {
     return item.isDirectory();
   }
@@ -83,9 +76,7 @@ function resolveDirentDirectoryStatus(
   }
 }
 
-function createGitIgnoreFilter(
-  cwdRoot: string
-): (relativePath: string) => boolean {
+function createGitIgnoreFilter(cwdRoot: string): (relativePath: string) => boolean {
   const matcher = ignore();
   matcher.add(loadIgnoreFile(path.join(cwdRoot, ".gitignore")));
   matcher.add(loadIgnoreFile(path.join(cwdRoot, ".git", "info", "exclude")));
@@ -97,7 +88,7 @@ export function listDirectoryWithGit(
   cwdRoot: string,
   gitFiles: Set<string> | null,
   skipHidden: boolean,
-  skipPatterns: string[]
+  skipPatterns: string[],
 ): FileEntry[] {
   const entries: FileEntry[] = [];
 
@@ -171,7 +162,7 @@ export function listAllFiles(
   results: FileEntry[],
   skipHidden: boolean,
   skipPatterns: string[],
-  ancestorRealPaths: Set<string> = new Set()
+  ancestorRealPaths: Set<string> = new Set(),
 ): FileEntry[] {
   let realDirPath: string;
   try {
@@ -216,14 +207,7 @@ export function listAllFiles(
       });
 
       if (isDirectory) {
-        listAllFiles(
-          fullPath,
-          cwdRoot,
-          results,
-          skipHidden,
-          skipPatterns,
-          nextAncestorRealPaths
-        );
+        listAllFiles(fullPath, cwdRoot, results, skipHidden, skipPatterns, nextAncestorRealPaths);
       }
     }
   } catch {
@@ -248,10 +232,7 @@ export function isGitRepo(cwdRoot: string): boolean {
 
 function isSymbolicDirectory(fullPath: string): boolean {
   try {
-    return (
-      fs.lstatSync(fullPath).isSymbolicLink() &&
-      fs.statSync(fullPath).isDirectory()
-    );
+    return fs.lstatSync(fullPath).isSymbolicLink() && fs.statSync(fullPath).isDirectory();
   } catch {
     return false;
   }
@@ -260,20 +241,17 @@ function isSymbolicDirectory(fullPath: string): boolean {
 export function listGitFiles(
   cwdRoot: string,
   skipHidden = false,
-  skipPatterns: string[] = []
+  skipPatterns: string[] = [],
 ): FileEntry[] {
   const entriesByPath = new Map<string, FileEntry>();
 
   try {
-    const output = execSync(
-      "git ls-files --cached --others --exclude-standard",
-      {
-        cwd: cwdRoot,
-        encoding: "utf-8",
-        stdio: "pipe",
-        maxBuffer: 10 * 1024 * 1024,
-      }
-    );
+    const output = execSync("git ls-files --cached --others --exclude-standard", {
+      cwd: cwdRoot,
+      encoding: "utf-8",
+      stdio: "pipe",
+      maxBuffer: 10 * 1024 * 1024,
+    });
 
     const files = output.trim().split("\n").filter(Boolean);
     const shouldIncludeGitPath = createGitIgnoreFilter(cwdRoot);
@@ -310,20 +288,10 @@ export function listGitFiles(
     }
 
     for (const symlinkDirectory of symlinkDirectories) {
-      const linkedEntries = listAllFiles(
-        symlinkDirectory,
-        cwdRoot,
-        [],
-        skipHidden,
-        skipPatterns
-      );
+      const linkedEntries = listAllFiles(symlinkDirectory, cwdRoot, [], skipHidden, skipPatterns);
       for (const entry of linkedEntries) {
         if (
-          shouldSkipRelativePath(
-            entry.relativePath,
-            skipHidden,
-            skipPatterns
-          ) ||
+          shouldSkipRelativePath(entry.relativePath, skipHidden, skipPatterns) ||
           !shouldIncludeGitPath(entry.relativePath)
         ) {
           continue;

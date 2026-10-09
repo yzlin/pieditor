@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import type {
-  ExtensionContext,
-  ReadonlyFooterDataProvider,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, AutocompleteProvider } from "@earendil-works/pi-tui";
 
 import { renderAmpEditorChrome } from "./editor/amp-chrome";
@@ -40,7 +37,7 @@ function createEditor(
     tuiMode?: "regular" | "fullscreen";
     isFollowingOutput?: boolean;
     onScrollToBottom?: () => void;
-  }
+  },
 ) {
   const tui = {
     mode: options?.tuiMode ?? "regular",
@@ -90,10 +87,8 @@ function createEditor(
   return new EnhancedEditor(tui, theme, keybindings, ui, {
     onContinue: options?.onContinue ?? (() => undefined),
     getDoubleEscapeCommand:
-      options?.getDoubleEscapeCommand ??
-      (() => options?.doubleEscapeCommand ?? null),
-    canTriggerDoubleEscapeCommand:
-      options?.canTriggerDoubleEscapeCommand ?? (() => false),
+      options?.getDoubleEscapeCommand ?? (() => options?.doubleEscapeCommand ?? null),
+    canTriggerDoubleEscapeCommand: options?.canTriggerDoubleEscapeCommand ?? (() => false),
     commandRemap,
     doublePaste: options?.doublePaste ?? { enabled: true, windowMs: 1000 },
     editorChrome: {
@@ -139,7 +134,7 @@ function createStatusBarContext(): ExtensionContext {
 }
 
 function createStatusBarFooterData(
-  getExtensionStatuses: () => ReadonlyMap<string, string> = () => new Map()
+  getExtensionStatuses: () => ReadonlyMap<string, string> = () => new Map(),
 ): ReadonlyFooterDataProvider {
   return {
     getGitBranch() {
@@ -166,12 +161,15 @@ const longPaste = (label: string) =>
 describe("EnhancedEditor double-submit continue", () => {
   it("uses configured submit, consumes first, and sends continue on second", () => {
     let continues = 0;
-    const editor = createEditor({}, {
-      submitMatches: (data) => data === "ctrl+j",
-      onContinue: () => {
-        continues += 1;
+    const editor = createEditor(
+      {},
+      {
+        submitMatches: (data) => data === "ctrl+j",
+        onContinue: () => {
+          continues += 1;
+        },
       },
-    });
+    );
 
     editor.handleInput("\r");
     expect(continues).toBe(0);
@@ -189,7 +187,9 @@ describe("EnhancedEditor double-submit continue", () => {
     expect(editor.getText()).toBe(" submit");
 
     const autocompleteEditor = createEditor({}, { submitMatches: () => true });
-    (autocompleteEditor as unknown as { isShowingAutocomplete: () => boolean }).isShowingAutocomplete = () => true;
+    (
+      autocompleteEditor as unknown as { isShowingAutocomplete: () => boolean }
+    ).isShowingAutocomplete = () => true;
     autocompleteEditor.handleInput("submit");
     expect(autocompleteEditor.getText()).toBe("submit");
   });
@@ -197,12 +197,15 @@ describe("EnhancedEditor double-submit continue", () => {
   it("disarms when programmatic text is submitted before another empty submit", () => {
     let continues = 0;
     const submitted: string[] = [];
-    const editor = createEditor({}, {
-      submitMatches: (data) => data === "\r",
-      onContinue: () => {
-        continues += 1;
+    const editor = createEditor(
+      {},
+      {
+        submitMatches: (data) => data === "\r",
+        onContinue: () => {
+          continues += 1;
+        },
       },
-    });
+    );
     editor.onSubmit = (text) => submitted.push(text);
 
     editor.handleInput("\r");
@@ -217,15 +220,17 @@ describe("EnhancedEditor double-submit continue", () => {
   it("disarms before native handling of an autocomplete-visible submit", () => {
     let continues = 0;
     let showingAutocomplete = false;
-    const editor = createEditor({}, {
-      submitMatches: (data) => data === "submit",
-      onContinue: () => {
-        continues += 1;
+    const editor = createEditor(
+      {},
+      {
+        submitMatches: (data) => data === "submit",
+        onContinue: () => {
+          continues += 1;
+        },
       },
-    });
-    (
-      editor as unknown as { isShowingAutocomplete: () => boolean }
-    ).isShowingAutocomplete = () => showingAutocomplete;
+    );
+    (editor as unknown as { isShowingAutocomplete: () => boolean }).isShowingAutocomplete = () =>
+      showingAutocomplete;
 
     editor.handleInput("submit");
     showingAutocomplete = true;
@@ -245,9 +250,7 @@ describe("EnhancedEditor double-submit continue", () => {
     const frameLines = normal.filter((line) => line.includes("─"));
     expect(frameLines.length).toBeGreaterThanOrEqual(2);
     expect(
-      frameLines.every(
-        (line) => line.startsWith("<warning>") && line.endsWith("</warning>")
-      )
+      frameLines.every((line) => line.startsWith("<warning>") && line.endsWith("</warning>")),
     ).toBe(true);
 
     editor.handleInput("x");
@@ -257,10 +260,13 @@ describe("EnhancedEditor double-submit continue", () => {
   });
 
   it("colors Amp frame while armed without coloring body", () => {
-    const editor = createEditor({}, {
-      editorChromeStyle: "amp",
-      submitMatches: (data) => data === "submit",
-    });
+    const editor = createEditor(
+      {},
+      {
+        editorChromeStyle: "amp",
+        submitMatches: (data) => data === "submit",
+      },
+    );
     editor.handleInput("submit");
 
     const normal = editor.render(40);
@@ -275,12 +281,15 @@ describe("EnhancedEditor double paste", () => {
   it("lets the first large paste collapse natively, then expands without duplication or success notice", () => {
     const notifications: Array<{ message: string; level: string | undefined }> = [];
     let renders = 0;
-    const editor = createEditor({}, {
-      notifications,
-      onRequestRender: () => {
-        renders += 1;
+    const editor = createEditor(
+      {},
+      {
+        notifications,
+        onRequestRender: () => {
+          renders += 1;
+        },
       },
-    });
+    );
     const pasted = longPaste("same");
 
     editor.handleInput(pasteInput(pasted));
@@ -375,16 +384,17 @@ describe("EnhancedEditor double paste", () => {
     let now = 100;
     Date.now = () => now;
     try {
-      const expiredEditor = createEditor({}, {
-        doublePaste: { enabled: true, windowMs: 50 },
-      });
+      const expiredEditor = createEditor(
+        {},
+        {
+          doublePaste: { enabled: true, windowMs: 50 },
+        },
+      );
       const expired = longPaste("expired");
       expiredEditor.handleInput(pasteInput(expired));
       now = 151;
       expiredEditor.handleInput(pasteInput(expired));
-      expect(expiredEditor.getText()).toMatch(
-        /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
-      );
+      expect(expiredEditor.getText()).toMatch(/^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/);
 
       const editedEditor = createEditor({});
       const edited = longPaste("edited");
@@ -406,9 +416,7 @@ describe("EnhancedEditor double paste", () => {
     editor.handleInput("\x1f");
     editor.handleInput(pasteInput(pasted));
 
-    expect(editor.getText()).toMatch(
-      /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
-    );
+    expect(editor.getText()).toMatch(/^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/);
   });
 
   it("keeps a candidate eligible across cursor-only movement", () => {
@@ -436,9 +444,7 @@ describe("EnhancedEditor double paste", () => {
     editorInternals(editor).submitValue();
 
     expect(submitted).toEqual([`${pasted}${pasted}`]);
-    expect(
-      notifications.filter(({ level }) => level === "warning")
-    ).toHaveLength(1);
+    expect(notifications.filter(({ level }) => level === "warning")).toHaveLength(1);
   });
 
   it("does not arm when literal marker text matches an existing native marker", () => {
@@ -454,22 +460,21 @@ describe("EnhancedEditor double paste", () => {
   });
 
   it("does no interception when disabled and never arms for short or marker-like text", () => {
-    const disabled = createEditor({}, {
-      doublePaste: { enabled: false, windowMs: 1000 },
-    });
+    const disabled = createEditor(
+      {},
+      {
+        doublePaste: { enabled: false, windowMs: 1000 },
+      },
+    );
     const pasted = longPaste("disabled");
     disabled.handleInput(pasteInput(pasted));
     disabled.handleInput(pasteInput(pasted));
-    expect(disabled.getText()).toMatch(
-      /^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/
-    );
+    expect(disabled.getText()).toMatch(/^\[paste #1 \+12 lines\]\[paste #2 \+12 lines\]$/);
 
     const short = createEditor({});
     short.handleInput(pasteInput("[paste #999 +12 lines]"));
     short.handleInput(pasteInput("[paste #999 +12 lines]"));
-    expect(short.getText()).toBe(
-      "[paste #999 +12 lines][paste #999 +12 lines]"
-    );
+    expect(short.getText()).toBe("[paste #999 +12 lines][paste #999 +12 lines]");
   });
 
   it("resets an armed double escape when a bracketed paste is recognized", () => {
@@ -478,11 +483,14 @@ describe("EnhancedEditor double paste", () => {
     Date.now = () => now;
     try {
       const submitted: string[] = [];
-      const editor = createEditor({}, {
-        doubleEscapeCommand: "anycopy",
-        canTriggerDoubleEscapeCommand: () => true,
-        interruptMatches: true,
-      });
+      const editor = createEditor(
+        {},
+        {
+          doubleEscapeCommand: "anycopy",
+          canTriggerDoubleEscapeCommand: () => true,
+          interruptMatches: true,
+        },
+      );
       editor.onSubmit = (text) => {
         submitted.push(text);
       };
@@ -500,13 +508,16 @@ describe("EnhancedEditor double paste", () => {
   });
 
   it("fails open when warning notification throws during expansion failure", () => {
-    const editor = createEditor({}, {
-      onNotify(_message, level) {
-        if (level === "warning") {
-          throw new Error("notify failed");
-        }
+    const editor = createEditor(
+      {},
+      {
+        onNotify(_message, level) {
+          if (level === "warning") {
+            throw new Error("notify failed");
+          }
+        },
       },
-    });
+    );
     const pasted = longPaste("throwing-notify");
     const originalGetExpandedText = editor.getExpandedText.bind(editor);
 
@@ -541,20 +552,21 @@ describe("EnhancedEditor double paste", () => {
     };
     editor.handleInput(pasteInput(second));
 
-    expect(
-      notifications.filter(({ level }) => level === "warning")
-    ).toHaveLength(1);
+    expect(notifications.filter(({ level }) => level === "warning")).toHaveLength(1);
   });
 });
 
 describe("EnhancedEditor command remap", () => {
   it("scrolls detached fullscreen output before forwarding remapped text", () => {
     const events: string[] = [];
-    const editor = createEditor({ tree: "anycopy" }, {
-      tuiMode: "fullscreen",
-      isFollowingOutput: false,
-      onScrollToBottom: () => events.push("scroll"),
-    });
+    const editor = createEditor(
+      { tree: "anycopy" },
+      {
+        tuiMode: "fullscreen",
+        isFollowingOutput: false,
+        onScrollToBottom: () => events.push("scroll"),
+      },
+    );
     editor.onSubmit = (text) => events.push(`submit:${text}`);
     editor.setText("/tree");
 
@@ -567,24 +579,24 @@ describe("EnhancedEditor command remap", () => {
     ["fullscreen output that is already following", "fullscreen", true, "prompt"],
     ["regular mode", "regular", false, "prompt"],
     ["empty input", "fullscreen", false, ""],
-  ] as const)(
-    "does not scroll for %s",
-    (_scenario, tuiMode, isFollowingOutput, text) => {
-      let scrolls = 0;
-      const editor = createEditor({}, {
+  ] as const)("does not scroll for %s", (_scenario, tuiMode, isFollowingOutput, text) => {
+    let scrolls = 0;
+    const editor = createEditor(
+      {},
+      {
         tuiMode,
         isFollowingOutput,
         onScrollToBottom: () => {
           scrolls += 1;
         },
-      });
-      editor.onSubmit = () => undefined;
+      },
+    );
+    editor.onSubmit = () => undefined;
 
-      editor.onSubmit?.(text);
+    editor.onSubmit?.(text);
 
-      expect(scrolls).toBe(0);
-    }
-  );
+    expect(scrolls).toBe(0);
+  });
 
   it("remaps slash commands on direct onSubmit invocation", () => {
     const editor = createEditor({ tree: "anycopy" });
@@ -636,10 +648,9 @@ describe("EnhancedEditor command remap", () => {
       },
     };
 
-    expect(matchesInterrupt(
-        keybindings as unknown as Parameters<typeof matchesInterrupt>[0],
-        "\x1b"
-      )).toBe(true);
+    expect(
+      matchesInterrupt(keybindings as unknown as Parameters<typeof matchesInterrupt>[0], "\x1b"),
+    ).toBe(true);
   });
 
   it("forwards autocomplete request options to the wrapped provider", async () => {
@@ -657,7 +668,7 @@ describe("EnhancedEditor command remap", () => {
         _lines: string[],
         _cursorLine: number,
         _cursorCol: number,
-        options?: { signal: AbortSignal; force?: boolean }
+        options?: { signal: AbortSignal; force?: boolean },
       ) {
         receivedOptions = options;
         return Promise.resolve(null);
@@ -667,21 +678,16 @@ describe("EnhancedEditor command remap", () => {
         cursorLine: number,
         cursorCol: number,
         _item: AutocompleteItem,
-        _prefix: string
+        _prefix: string,
       ) {
         return { lines, cursorLine, cursorCol };
       },
     });
 
-    await editorInternals(editor).autocompleteProvider.getSuggestions(
-      ["/tree"],
-      0,
-      5,
-      {
-        signal,
-        force: true,
-      }
-    );
+    await editorInternals(editor).autocompleteProvider.getSuggestions(["/tree"], 0, 5, {
+      signal,
+      force: true,
+    });
 
     expect(receivedOptions).toEqual({ signal, force: true });
   });
@@ -700,7 +706,7 @@ describe("EnhancedEditor command remap", () => {
         cursorLine: number,
         cursorCol: number,
         _item: AutocompleteItem,
-        _prefix: string
+        _prefix: string,
       ) {
         return { lines, cursorLine, cursorCol };
       },
@@ -709,9 +715,7 @@ describe("EnhancedEditor command remap", () => {
     editor.setAutocompleteProvider(provider);
     editor.setAutocompleteProvider(provider);
 
-    const result = await editorInternals(
-      editor
-    ).autocompleteProvider.getSuggestions(["@"], 0, 1, {
+    const result = await editorInternals(editor).autocompleteProvider.getSuggestions(["@"], 0, 1, {
       signal: new AbortController().signal,
     });
 
@@ -726,7 +730,7 @@ describe("EnhancedEditor command remap", () => {
         doubleEscapeCommand: "anycopy",
         canTriggerDoubleEscapeCommand: () => true,
         interruptMatches: true,
-      }
+      },
     );
 
     editor.onSubmit = (text) => {
@@ -748,7 +752,7 @@ describe("EnhancedEditor command remap", () => {
         canTriggerDoubleEscapeCommand: () => true,
         interruptMatches: (data) => data === "\x1b",
         submitMatches: (data) => data === "\r",
-      }
+      },
     );
 
     editor.onSubmit = (text) => {
@@ -771,7 +775,7 @@ describe("EnhancedEditor command remap", () => {
         getDoubleEscapeCommand: () => availableCommand,
         canTriggerDoubleEscapeCommand: () => true,
         interruptMatches: true,
-      }
+      },
     );
 
     editor.onSubmit = (text) => {
@@ -817,12 +821,7 @@ describe("EnhancedEditor command remap", () => {
       minBodyHeight: 1,
     });
 
-    expect(lines).toEqual([
-      "╭──────────────╮",
-      "│ body         │",
-      "╰──────────────╯",
-      "popup",
-    ]);
+    expect(lines).toEqual(["╭──────────────╮", "│ body         │", "╰──────────────╯", "popup"]);
   });
 
   it("clips Amp body lines without adding truncation ellipses", () => {
@@ -872,7 +871,7 @@ describe("EnhancedEditor command remap", () => {
           topRightContent: "",
           bottomContent: "bottom",
         },
-      })
+      }),
     ).toBe(editorLines);
   });
 
@@ -900,11 +899,7 @@ describe("EnhancedEditor command remap", () => {
   it("boxes centered native scroll borders from current Pi hosts", () => {
     const lines = renderAmpEditorChrome({
       width: 24,
-      editorLines: [
-        "───── ↑ 2 more ─────",
-        "body",
-        "───── ↓ 3 more ─────",
-      ],
+      editorLines: ["───── ↑ 2 more ─────", "body", "───── ↓ 3 more ─────"],
       labels: {
         topLeftContent: "top",
         topRightContent: "right",
@@ -931,11 +926,7 @@ describe("EnhancedEditor command remap", () => {
       minBodyHeight: 1,
     });
 
-    expect(lines).toEqual([
-      "╭───────────────╮",
-      "│ body          │",
-      "╰──── ↓ 13 m...─╯",
-    ]);
+    expect(lines).toEqual(["╭───────────────╮", "│ body          │", "╰──── ↓ 13 m...─╯"]);
   });
 
   it("does not classify arbitrary text after a truncated scroll shape as a border", () => {
@@ -950,7 +941,7 @@ describe("EnhancedEditor command remap", () => {
           topRightContent: "",
           bottomContent: "bottom",
         },
-      })
+      }),
     ).toBe(editorLines);
   });
 
@@ -964,7 +955,7 @@ describe("EnhancedEditor command remap", () => {
         statusBarContext: createStatusBarContext(),
         statusBarFooterData: createStatusBarFooterData(),
         borderColor,
-      }
+      },
     );
 
     const lines = editor.render(60);
@@ -973,9 +964,7 @@ describe("EnhancedEditor command remap", () => {
     expect(lines[0]).toContain("test-model");
     expect(lines[0]).not.toContain(borderColor("test-model"));
     expect(lines.at(-1)).toContain("main");
-    expect(lines.some((line) => line.startsWith(`${borderColor("│")} `))).toBe(
-      true
-    );
+    expect(lines.some((line) => line.startsWith(`${borderColor("│")} `))).toBe(true);
   });
 
   it("wraps long Amp editor input at the framed body width", () => {
@@ -983,7 +972,7 @@ describe("EnhancedEditor command remap", () => {
       {},
       {
         editorChromeStyle: "amp",
-      }
+      },
     );
     editor.setText("0123456789abcdef");
 
@@ -1000,7 +989,7 @@ describe("EnhancedEditor command remap", () => {
         editorChromeStyle: "amp",
         statusBarEnabled: false,
         statusBarContext: createStatusBarContext(),
-      }
+      },
     );
 
     const lines = editor.render(20);
@@ -1015,7 +1004,7 @@ describe("EnhancedEditor command remap", () => {
         statusBarEnabled: true,
         statusBarContext: createStatusBarContext(),
         statusBarFooterData: createStatusBarFooterData(),
-      }
+      },
     );
 
     const width = 40;
@@ -1043,7 +1032,7 @@ describe("EnhancedEditor command remap", () => {
         statusBarEnabled: true,
         statusBarContext: null,
         statusBarFooterData: options.statusBarFooterData,
-      }
+      },
     );
 
     expect(lines).toEqual(detachedEditor.render(width));

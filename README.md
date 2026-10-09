@@ -6,15 +6,18 @@ A composite custom editor that combines several `setEditorComponent()`-based UX 
 
 This repo maintains its own rewritten and independently evolving variant of the upstream `editor-enhancements` extension, under the local name `pieditor`.
 The original extension concept and initial implementation came from `w-winter/dot314`:
+
 - https://github.com/w-winter/dot314/tree/main/extensions/editor-enhancements
 
 Please keep that upstream credit in place when updating this local version. This repo may continue evolving the extension in its own direction, but the original author should remain credited for the upstream design and starting point.
 
 File picker preview highlighting is also powered by:
+
 - `bat`: https://github.com/sharkdp/bat
 - `syntect`: https://github.com/trishume/syntect/
 
 This extension currently provides:
+
 - powerline-style status bar rendered in the editor's top border
 - `@`-triggered file picking for inserting `@path` refs at the cursor
 - shell completions in `!` / `!!` mode
@@ -33,6 +36,7 @@ This extension requires Pi `^0.84.0` and integrates directly into Pi's editor. T
 On each non-empty submit from a detached fullscreen transcript, pieditor scrolls to the bottom immediately before forwarding the remapped text. Already-following fullscreen transcripts and regular mode are unaffected.
 
 Notable interactions:
+
 - Type `@` at token start to open the file picker
 - In the file picker, `space` queues or unqueues the highlighted file, or enters the highlighted directory
 - In the file picker, `ctrl+n` / `ctrl+p` move the highlight down / up in the file list and options panel
@@ -107,7 +111,7 @@ Then add the rest of your config fields:
   - `leftSegments`: optional ordered list of segment ids for the left side; when omitted, inherits the preset default
   - `rightSegments`: optional ordered list of segment ids for the right side; when omitted, inherits the preset default
   - `separator`: optional literal separator text inserted between visible segments; when omitted, inherits the preset separator; may be empty (`""`)
-  - overflow handling: status lines render normally first, then fall back to compact segment output when the terminal is too narrow. Compact fallback always separates same-side segments with ` | `, regardless of configured separator. Examples: model `✦ claude` becomes `claude`, context `12.5%/200k` becomes `12.5%`, and git `⎇ main *1` becomes `main *1`.
+  - overflow handling: status lines render normally first, then fall back to compact segment output when the terminal is too narrow. Compact fallback always separates same-side segments with `|`, regardless of configured separator. Examples: model `✦ claude` becomes `claude`, context `12.5%/200k` becomes `12.5%`, and git `⎇ main *1` becomes `main *1`.
   - `colors`: optional semantic color overrides layered on top of the preset palette
     - supported color keys: `pi`, `model`, `path`, `gitDirty`, `gitClean`, `thinking`, `context`, `contextWarn`, `contextError`, `cost`, `tokens`, `separator`
     - values may be Pi theme color names or `#RRGGBB` hex
@@ -121,28 +125,28 @@ Then add the rest of your config fields:
   - icon mode: Nerd Font icons are on by default; set `POWERLINE_NERD_FONTS=0` before launching Pi to force ASCII fallbacks. The examples below use ASCII fallback icons.
   - supported segment ids:
 
-    | id | visual example | description |
-    | --- | --- | --- |
-    | `pi` | `π` | Pi mark. Hidden when the active icon set has no Pi icon. |
-    | `model` | `✦ sonnet ⚡ · [med]` | Active model name. May append thinking level when `model.showThinkingLevel` is enabled. If the standalone `extensions/fast` extension is loaded, also appends Fast Mode's `fast` status as compact `⚡` or `⚡*`; `extension_statuses` suppresses `fast` when `model` is configured. |
-    | `path` | `▣ pieditor` | Current working directory. Controlled by `path.mode` and `path.maxLength`. |
-    | `git` | `⎇ main *2 +1 ?3` | Current git branch and optional dirty counters for unstaged, staged, and untracked files. |
-    | `token_in` | `↙ 1.2k` | Input token count. Hidden when zero. |
-    | `token_out` | `↗ 830` | Output token count. Hidden when zero. |
-    | `token_total` | `◎ 2.0k` | Total token count across input, output, cache read, and cache write. Hidden when zero. |
-    | `tps` | `» 42 tok/s` | Output tokens per second for the last completed assistant message, timed from first streamed token to message end. Hidden until a message completes; reset on session start. |
-    | `cost` | `$0.03` or `(sub)` | Session cost, or subscription marker when the model uses OAuth. Hidden when neither applies. |
-    | `context_pct` | `◫ 42.0%/200k` | Context usage percent plus context window size. Warn/error colors apply above 70%/90%. Hidden when context size is unknown. |
-    | `context_total` | `◫ 200k` | Context window size. Hidden when unknown. |
-    | `time_spent` | `◷ 3m12s` | Elapsed session time. Hidden during the first second. |
-    | `time` | `◷ 14:05` or `◷ 2:05pm` | Current wall-clock time. Controlled by `time.format` and `time.showSeconds`. |
-    | `session` | `◇ abc12345` | Current session id prefix, or `new` before a session id exists. |
-    | `hostname` | `@ macbook` | Hostname before the first dot. |
-    | `cache_read` | `⟳ ↙ 4.1k` | Cache read token count. Hidden when zero. |
-    | `cache_write` | `⟳ ↗ 900` | Cache write token count. Hidden when zero. |
-    | `thinking` | `think:med` | Current thinking level as `off`, `min`, `low`, `med`, `high`, or `xhigh`. |
-    | `caveman` | `🪨 caveman` | Standalone `extensions/caveman` integration. Renders generic extension status key `caveman`; hidden unless that extension sets the status. `extension_statuses` suppresses `caveman` when this dedicated segment is configured. |
-    | `extension_statuses` | `🧪 tests · sync` | Generic fallback bucket for extension statuses set via `ctx.ui.setStatus(key, text)`. Shows statuses that do not have a configured dedicated segment; hides empty values and values starting with `[`. |
+    | id                   | visual example          | description                                                                                                                                                                                                                                                                          |
+    | -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+    | `pi`                 | `π`                     | Pi mark. Hidden when the active icon set has no Pi icon.                                                                                                                                                                                                                             |
+    | `model`              | `✦ sonnet ⚡ · [med]`   | Active model name. May append thinking level when `model.showThinkingLevel` is enabled. If the standalone `extensions/fast` extension is loaded, also appends Fast Mode's `fast` status as compact `⚡` or `⚡*`; `extension_statuses` suppresses `fast` when `model` is configured. |
+    | `path`               | `▣ pieditor`            | Current working directory. Controlled by `path.mode` and `path.maxLength`.                                                                                                                                                                                                           |
+    | `git`                | `⎇ main *2 +1 ?3`       | Current git branch and optional dirty counters for unstaged, staged, and untracked files.                                                                                                                                                                                            |
+    | `token_in`           | `↙ 1.2k`                | Input token count. Hidden when zero.                                                                                                                                                                                                                                                 |
+    | `token_out`          | `↗ 830`                 | Output token count. Hidden when zero.                                                                                                                                                                                                                                                |
+    | `token_total`        | `◎ 2.0k`                | Total token count across input, output, cache read, and cache write. Hidden when zero.                                                                                                                                                                                               |
+    | `tps`                | `» 42 tok/s`            | Output tokens per second for the last completed assistant message, timed from first streamed token to message end. Hidden until a message completes; reset on session start.                                                                                                         |
+    | `cost`               | `$0.03` or `(sub)`      | Session cost, or subscription marker when the model uses OAuth. Hidden when neither applies.                                                                                                                                                                                         |
+    | `context_pct`        | `◫ 42.0%/200k`          | Context usage percent plus context window size. Warn/error colors apply above 70%/90%. Hidden when context size is unknown.                                                                                                                                                          |
+    | `context_total`      | `◫ 200k`                | Context window size. Hidden when unknown.                                                                                                                                                                                                                                            |
+    | `time_spent`         | `◷ 3m12s`               | Elapsed session time. Hidden during the first second.                                                                                                                                                                                                                                |
+    | `time`               | `◷ 14:05` or `◷ 2:05pm` | Current wall-clock time. Controlled by `time.format` and `time.showSeconds`.                                                                                                                                                                                                         |
+    | `session`            | `◇ abc12345`            | Current session id prefix, or `new` before a session id exists.                                                                                                                                                                                                                      |
+    | `hostname`           | `@ macbook`             | Hostname before the first dot.                                                                                                                                                                                                                                                       |
+    | `cache_read`         | `⟳ ↙ 4.1k`              | Cache read token count. Hidden when zero.                                                                                                                                                                                                                                            |
+    | `cache_write`        | `⟳ ↗ 900`               | Cache write token count. Hidden when zero.                                                                                                                                                                                                                                           |
+    | `thinking`           | `think:med`             | Current thinking level as `off`, `min`, `low`, `med`, `high`, or `xhigh`.                                                                                                                                                                                                            |
+    | `caveman`            | `🪨 caveman`            | Standalone `extensions/caveman` integration. Renders generic extension status key `caveman`; hidden unless that extension sets the status. `extension_statuses` suppresses `caveman` when this dedicated segment is configured.                                                      |
+    | `extension_statuses` | `🧪 tests · sync`       | Generic fallback bucket for extension statuses set via `ctx.ui.setStatus(key, text)`. Shows statuses that do not have a configured dedicated segment; hides empty values and values starting with `[`.                                                                               |
 
 ```json
 {
@@ -198,6 +202,7 @@ Status bar presets are borrowed from `pi-powerline-footer`, but this extension p
 Set `doubleEscapeCommand` to `null` to disable the remapping and keep Pi's native double-escape behavior. Set `commandRemap` to `{}` (or omit it) to disable command remapping.
 
 Runtime merge order for pieditor config is:
+
 1. built-in defaults
 2. global `~/.pi/agent/pieditor.json`
 3. project `.pi/pieditor.json`
@@ -229,6 +234,7 @@ npm run build:syntect-picker-preview
 ```
 
 Current scope:
+
 - picker preview only
 - v1 native prebuild support is macOS arm64 only (`syntect-picker-preview.darwin-arm64.node`)
 - the addon has no install-time build step; unsupported platforms install normally and use fallback highlighting

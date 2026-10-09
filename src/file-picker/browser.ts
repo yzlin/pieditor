@@ -26,16 +26,8 @@ import {
 } from "./filter.js";
 import { highlightPreviewLines } from "./highlight.js";
 import { loadPreviewData } from "./preview.js";
-import {
-  type FilePickerRuntime,
-  getSharedFilePickerRuntime,
-} from "./runtime.js";
-import {
-  fg,
-  padVisibleText,
-  paletteTheme,
-  truncateVisibleText,
-} from "./theme.js";
+import { type FilePickerRuntime, getSharedFilePickerRuntime } from "./runtime.js";
+import { fg, padVisibleText, paletteTheme, truncateVisibleText } from "./theme.js";
 import type {
   BrowserOption,
   CompletionEntry,
@@ -80,9 +72,8 @@ export class FileBrowserComponent implements Focusable {
     done: (action: FileBrowserAction) => void,
     runtime: FilePickerRuntime = getSharedFilePickerRuntime(),
     previewThemeMode: "dark" | "light" = "dark",
-    previewHighlightMode: PreviewHighlightMode = runtime.config
-      .previewHighlightMode,
-    frameColor?: (text: string) => string
+    previewHighlightMode: PreviewHighlightMode = runtime.config.previewHighlightMode,
+    frameColor?: (text: string) => string,
   ) {
     this.done = done;
     this.runtime = runtime;
@@ -140,10 +131,7 @@ export class FileBrowserComponent implements Focusable {
     return this.options.filter((o) => o.visible());
   }
 
-  private setSearchQuery(
-    query: string,
-    cursor: "preserve" | "end" = "preserve"
-  ): void {
+  private setSearchQuery(query: string, cursor: "preserve" | "end" = "preserve"): void {
     this.searchInput.setValue(query);
     if (cursor === "end") {
       (this.searchInput as unknown as { cursor: number }).cursor = query.length;
@@ -165,11 +153,7 @@ export class FileBrowserComponent implements Focusable {
     const skipHidden = this.getOption("skipHidden")?.enabled ?? true;
 
     if (this.inGitRepo && respectGitignore) {
-      const gitEntries = listGitFiles(
-        this.cwdRoot,
-        skipHidden,
-        this.runtime.config.skipPatterns
-      );
+      const gitEntries = listGitFiles(this.cwdRoot, skipHidden, this.runtime.config.skipPatterns);
       this.gitFiles = new Set(gitEntries.map((e) => e.relativePath));
       this.allFilesRecursive = gitEntries;
     } else {
@@ -179,7 +163,7 @@ export class FileBrowserComponent implements Focusable {
         this.cwdRoot,
         [],
         skipHidden,
-        this.runtime.config.skipPatterns
+        this.runtime.config.skipPatterns,
       );
     }
 
@@ -204,7 +188,7 @@ export class FileBrowserComponent implements Focusable {
       this.cwdRoot,
       this.gitFiles,
       skipHidden,
-      this.runtime.config.skipPatterns
+      this.runtime.config.skipPatterns,
     );
 
     entries.unshift({
@@ -287,30 +271,18 @@ export class FileBrowserComponent implements Focusable {
       return;
     }
 
-    if (
-      matchesKey(data, "up") ||
-      matchesKey(data, "left") ||
-      matchesKey(data, "ctrl+p")
-    ) {
+    if (matchesKey(data, "up") || matchesKey(data, "left") || matchesKey(data, "ctrl+p")) {
       if (visibleOptions.length > 0) {
         this.selectedOption =
-          this.selectedOption === 0
-            ? visibleOptions.length - 1
-            : this.selectedOption - 1;
+          this.selectedOption === 0 ? visibleOptions.length - 1 : this.selectedOption - 1;
       }
       return;
     }
 
-    if (
-      matchesKey(data, "down") ||
-      matchesKey(data, "right") ||
-      matchesKey(data, "ctrl+n")
-    ) {
+    if (matchesKey(data, "down") || matchesKey(data, "right") || matchesKey(data, "ctrl+n")) {
       if (visibleOptions.length > 0) {
         this.selectedOption =
-          this.selectedOption === visibleOptions.length - 1
-            ? 0
-            : this.selectedOption + 1;
+          this.selectedOption === visibleOptions.length - 1 ? 0 : this.selectedOption + 1;
       }
       return;
     }
@@ -325,10 +297,7 @@ export class FileBrowserComponent implements Focusable {
       } else if (currentOption.id === "allowFolderSelection") {
         this.runtime.state.allowFolderSelection = currentOption.enabled;
         if (!currentOption.enabled) {
-          for (const [
-            selectedPath,
-            isDirectory,
-          ] of this.selectedPaths.entries()) {
+          for (const [selectedPath, isDirectory] of this.selectedPaths.entries()) {
             if (isDirectory) {
               this.selectedPaths.delete(selectedPath);
             }
@@ -359,10 +328,7 @@ export class FileBrowserComponent implements Focusable {
       if (entry) {
         if (entry.name === "..") {
           this.goUp();
-        } else if (
-          entry.isDirectory &&
-          !this.runtime.state.allowFolderSelection
-        ) {
+        } else if (entry.isDirectory && !this.runtime.state.allowFolderSelection) {
           this.navigateTo(path.join(this.cwdRoot, entry.relativePath));
         } else {
           const paths = this.getSelectedPathsArray();
@@ -381,16 +347,14 @@ export class FileBrowserComponent implements Focusable {
 
     if (matchesKey(data, "up") || matchesKey(data, "ctrl+p")) {
       if (this.filtered.length > 0) {
-        this.selected =
-          this.selected === 0 ? this.filtered.length - 1 : this.selected - 1;
+        this.selected = this.selected === 0 ? this.filtered.length - 1 : this.selected - 1;
       }
       return;
     }
 
     if (matchesKey(data, "down") || matchesKey(data, "ctrl+n")) {
       if (this.filtered.length > 0) {
-        this.selected =
-          this.selected === this.filtered.length - 1 ? 0 : this.selected + 1;
+        this.selected = this.selected === this.filtered.length - 1 ? 0 : this.selected + 1;
       }
       return;
     }
@@ -498,7 +462,7 @@ export class FileBrowserComponent implements Focusable {
 
   private findPrefixCompletionMatch(
     query: string,
-    entries: CompletionEntry[]
+    entries: CompletionEntry[],
   ): CompletionEntry | null {
     return (
       this.findDirectPrefixCompletionMatch(query, entries) ??
@@ -508,7 +472,7 @@ export class FileBrowserComponent implements Focusable {
 
   private findDirectPrefixCompletionMatch(
     query: string,
-    entries: CompletionEntry[]
+    entries: CompletionEntry[],
   ): CompletionEntry | null {
     const queryLower = query.toLowerCase();
     const matches = entries
@@ -519,7 +483,7 @@ export class FileBrowserComponent implements Focusable {
 
   private findNormalizedPrefixCompletionMatch(
     query: string,
-    entries: CompletionEntry[]
+    entries: CompletionEntry[],
   ): CompletionEntry | null {
     const normalizedQuery = this.normalizeAlnum(query);
     if (!normalizedQuery) {
@@ -527,16 +491,14 @@ export class FileBrowserComponent implements Focusable {
     }
 
     const matches = entries
-      .filter((entry) =>
-        this.normalizeAlnum(entry.path).startsWith(normalizedQuery)
-      )
+      .filter((entry) => this.normalizeAlnum(entry.path).startsWith(normalizedQuery))
       .sort((a, b) => this.compareCompletionEntries(a, b));
     return matches[0] ?? null;
   }
 
   private findScopedFuzzyCompletionMatch(
     query: string,
-    entries: CompletionEntry[]
+    entries: CompletionEntry[],
   ): CompletionEntry | null {
     const scopedQuery = resolveScopedFuzzyQuery(query);
     if (!scopedQuery) {
@@ -551,17 +513,11 @@ export class FileBrowserComponent implements Focusable {
           : 0,
       }))
       .filter((item) => item.score > 0)
-      .sort(
-        (a, b) =>
-          b.score - a.score || this.compareCompletionEntries(a.entry, b.entry)
-      );
+      .sort((a, b) => b.score - a.score || this.compareCompletionEntries(a.entry, b.entry));
     return matches[0]?.entry ?? null;
   }
 
-  private compareCompletionEntries(
-    a: CompletionEntry,
-    b: CompletionEntry
-  ): number {
+  private compareCompletionEntries(a: CompletionEntry, b: CompletionEntry): number {
     if (a.path.length !== b.path.length) {
       return a.path.length - b.path.length;
     }
@@ -580,10 +536,7 @@ export class FileBrowserComponent implements Focusable {
       return completionPath.slice(0, end);
     }
 
-    const longestCommonPrefix = this.commonPrefixLength(
-      queryLower,
-      completionLower
-    );
+    const longestCommonPrefix = this.commonPrefixLength(queryLower, completionLower);
     if (longestCommonPrefix === 0) {
       return query;
     }
@@ -644,11 +597,7 @@ export class FileBrowserComponent implements Focusable {
   private updateFilter(preferredPath?: string): void {
     if (this.query.trim()) {
       this.isSearchMode = true;
-      this.filtered = filterEntries(
-        this.allFilesRecursive,
-        this.query,
-        preferredPath
-      );
+      this.filtered = filterEntries(this.allFilesRecursive, this.query, preferredPath);
     } else {
       this.isSearchMode = false;
       this.filtered = this.allEntries;
@@ -675,8 +624,7 @@ export class FileBrowserComponent implements Focusable {
     const hint = (s: string) => fg(t.hint, s);
     const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
 
-    const row = (content: string) =>
-      border("│") + padVisibleText(content, innerW) + border("│");
+    const row = (content: string) => border("│") + padVisibleText(content, innerW) + border("│");
 
     let titleText: string;
     if (this.isSearchMode) {
@@ -693,12 +641,11 @@ export class FileBrowserComponent implements Focusable {
     lines.push(
       border(`╭${"─".repeat(leftBorder)}`) +
         title(titleText) +
-        border(`${"─".repeat(rightBorder)}╮`)
+        border(`${"─".repeat(rightBorder)}╮`),
     );
 
     const searchPrompt = selected("❯ ");
-    const modeIndicator =
-      this.query && isGlobPattern(this.query) ? hint(" [glob]") : "";
+    const modeIndicator = this.query && isGlobPattern(this.query) ? hint(" [glob]") : "";
     const searchWidth = Math.max(3, innerW - 1 - visibleWidth(modeIndicator));
     const renderedSearchInput = this.searchInput.render(searchWidth)[0] ?? "> ";
     const normalizedSearchInput = renderedSearchInput.startsWith("> ")
@@ -707,8 +654,7 @@ export class FileBrowserComponent implements Focusable {
     lines.push(row(` ${searchPrompt}${normalizedSearchInput}${modeIndicator}`));
 
     const visibleOptions = this.getVisibleOptions();
-    const allowFolderSelection =
-      this.getOption("allowFolderSelection")?.enabled ?? true;
+    const allowFolderSelection = this.getOption("allowFolderSelection")?.enabled ?? true;
     if (visibleOptions.length > 0) {
       const optParts: string[] = [];
       for (let i = 0; i < visibleOptions.length; i++) {
@@ -723,9 +669,7 @@ export class FileBrowserComponent implements Focusable {
         optParts.push(`${prefix}${checkbox} ${label}`);
       }
       const optionsStr = optParts.join(" ");
-      const tabHint = this.focusOnOptions
-        ? hint(" (arrows/space/esc)")
-        : hint(" (shift+tab)");
+      const tabHint = this.focusOnOptions ? hint(" (arrows/space/esc)") : hint(" (shift+tab)");
       lines.push(row(` ${optionsStr}${tabHint}`));
     } else {
       lines.push(row(""));
@@ -737,8 +681,8 @@ export class FileBrowserComponent implements Focusable {
       0,
       Math.min(
         this.selected - Math.floor(this.maxVisible / 2),
-        this.filtered.length - this.maxVisible
-      )
+        this.filtered.length - this.maxVisible,
+      ),
     );
 
     for (let i = 0; i < this.maxVisible; i++) {
@@ -747,8 +691,7 @@ export class FileBrowserComponent implements Focusable {
         const entry = this.filtered[actualIndex];
         const isSelectedEntry = actualIndex === this.selected;
         const isUpDir = this.isUpEntry(entry);
-        const isChecked =
-          !isUpDir && this.selectedPaths.has(entry.relativePath);
+        const isChecked = !isUpDir && this.selectedPaths.has(entry.relativePath);
 
         const prefix = isSelectedEntry ? selected(" ▶ ") : "   ";
 
@@ -766,25 +709,17 @@ export class FileBrowserComponent implements Focusable {
 
         let nameStr: string;
         if (isUpDir) {
-          nameStr = isSelectedEntry
-            ? bold(selectedText(truncatedName))
-            : hint(truncatedName);
+          nameStr = isSelectedEntry ? bold(selectedText(truncatedName)) : hint(truncatedName);
         } else if (entry.isDirectory) {
-          nameStr = isSelectedEntry
-            ? bold(selectedText(truncatedName))
-            : directory(truncatedName);
+          nameStr = isSelectedEntry ? bold(selectedText(truncatedName)) : directory(truncatedName);
         } else {
-          nameStr = isSelectedEntry
-            ? bold(selectedText(truncatedName))
-            : truncatedName;
+          nameStr = isSelectedEntry ? bold(selectedText(truncatedName)) : truncatedName;
         }
 
         if (isUpDir) {
           lines.push(row(`${prefix}   ${nameStr}`));
         } else if (entry.isDirectory && !allowFolderSelection) {
-          const navMark = isSelectedEntry
-            ? selectedText("› ")
-            : directory("› ");
+          const navMark = isSelectedEntry ? selectedText("› ") : directory("› ");
           lines.push(row(`${prefix}${navMark}${nameStr}`));
         } else {
           const checkMark = isChecked ? checked("☑ ") : hint("☐ ");
@@ -802,11 +737,7 @@ export class FileBrowserComponent implements Focusable {
       lines.push(row(hint(` (${shown} of ${this.filtered.length})`)));
     } else if (this.filtered.length > 0) {
       lines.push(
-        row(
-          hint(
-            ` (${this.filtered.length} file${this.filtered.length === 1 ? "" : "s"})`
-          )
-        )
+        row(hint(` (${this.filtered.length} file${this.filtered.length === 1 ? "" : "s"})`)),
       );
     } else {
       lines.push(row(""));
@@ -815,22 +746,15 @@ export class FileBrowserComponent implements Focusable {
     lines.push(border(`├${"─".repeat(innerW)}┤`));
     if (this.selectedPaths.size > 0) {
       const selectedList = Array.from(this.selectedPaths.keys()).slice(0, 3);
-      const preview =
-        selectedList.join(", ") + (this.selectedPaths.size > 3 ? ", ..." : "");
+      const preview = selectedList.join(", ") + (this.selectedPaths.size > 3 ? ", ..." : "");
       lines.push(
         row(
-          ` ${checked(`Selected (${this.selectedPaths.size}):`)} ${truncateVisibleText(preview, innerW - 18)}`
-        )
+          ` ${checked(`Selected (${this.selectedPaths.size}):`)} ${truncateVisibleText(preview, innerW - 18)}`,
+        ),
       );
     } else {
       lines.push(
-        row(
-          hint(
-            allowFolderSelection
-              ? " No files or folders selected"
-              : " No files selected"
-          )
-        )
+        row(hint(allowFolderSelection ? " No files or folders selected" : " No files selected")),
       );
     }
 
@@ -840,9 +764,9 @@ export class FileBrowserComponent implements Focusable {
         hint(
           allowFolderSelection
             ? " ↑↓ nav  space queue  → open dir  tab complete  enter attach  esc done"
-            : " ↑↓ nav  space queue file  →/space open dir  tab complete  enter attach  esc done"
-        )
-      )
+            : " ↑↓ nav  space queue file  →/space open dir  tab complete  enter attach  esc done",
+        ),
+      ),
     );
     lines.push(border(`╰${"─".repeat(innerW)}╯`));
 
@@ -868,8 +792,7 @@ export class FileBrowserComponent implements Focusable {
     const checked = (s: string) => fg(t.checked, s);
     const hint = (s: string) => fg(t.hint, s);
     const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
-    const row = (content: string) =>
-      border("│") + padVisibleText(content, innerW) + border("│");
+    const row = (content: string) => border("│") + padVisibleText(content, innerW) + border("│");
 
     const titleText = " Preview ";
     const borderLen = Math.max(0, innerW - visibleWidth(titleText));
@@ -878,7 +801,7 @@ export class FileBrowserComponent implements Focusable {
     lines.push(
       border(`╭${"─".repeat(leftBorder)}`) +
         title(titleText) +
-        border(`${"─".repeat(rightBorder)}╮`)
+        border(`${"─".repeat(rightBorder)}╮`),
     );
 
     const renderedPreviewLines =
@@ -887,7 +810,7 @@ export class FileBrowserComponent implements Focusable {
             preview.lines,
             preview.title,
             this.previewThemeMode,
-            this.previewHighlightMode
+            this.previewHighlightMode,
           )
         : preview.lines;
     const previewTitle = truncateVisibleText(preview.title, innerW - 1);
@@ -898,9 +821,7 @@ export class FileBrowserComponent implements Focusable {
       titleLine = bold(previewTitle);
     }
     lines.push(row(` ${titleLine}`));
-    lines.push(
-      row(` ${hint(truncateVisibleText(preview.details, innerW - 1))}`)
-    );
+    lines.push(row(` ${hint(truncateVisibleText(preview.details, innerW - 1))}`));
     lines.push(border(`├${"─".repeat(innerW)}┤`));
 
     for (let i = 0; i < bodyRows; i++) {
@@ -910,12 +831,9 @@ export class FileBrowserComponent implements Focusable {
         continue;
       }
 
-      const isCodePreviewLine =
-        preview.kind === "file" && !line.startsWith("…");
+      const isCodePreviewLine = preview.kind === "file" && !line.startsWith("…");
       const truncatedLine = truncateVisibleText(line, innerW - 1);
-      const lineContent = isCodePreviewLine
-        ? truncatedLine
-        : hint(truncatedLine);
+      const lineContent = isCodePreviewLine ? truncatedLine : hint(truncatedLine);
       lines.push(row(` ${lineContent}`));
     }
 
@@ -937,16 +855,16 @@ export class FileBrowserComponent implements Focusable {
     const terminalRows = process.stdout.rows ?? 24;
     const targetModalHeight = Math.max(
       browserLines.length + 1 + this.minPreviewPaneHeight,
-      Math.floor(terminalRows * this.overlayHeightRatio)
+      Math.floor(terminalRows * this.overlayHeightRatio),
     );
     const previewHeight = Math.max(
       this.minPreviewPaneHeight,
-      targetModalHeight - browserLines.length - 1
+      targetModalHeight - browserLines.length - 1,
     );
     const previewLines = this.renderPreviewPane(totalWidth, previewHeight);
 
     return [...browserLines, "", ...previewLines].map((line) =>
-      truncateToWidth(line, totalWidth, "")
+      truncateToWidth(line, totalWidth, ""),
     );
   }
   invalidate(): void {

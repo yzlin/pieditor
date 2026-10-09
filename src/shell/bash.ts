@@ -52,7 +52,7 @@ function userHasBashCompletions(bashPath: string): boolean {
       {
         encoding: "utf-8",
         timeout: 500,
-      }
+      },
     );
 
     completionCheckCache = result.stdout?.trim() === "yes";
@@ -69,7 +69,7 @@ function userHasBashCompletions(bashPath: string): boolean {
 export function getBashCompletions(
   commandLine: string,
   cwd: string,
-  bashPath: string
+  bashPath: string,
 ): CompletionResult | null {
   // Check if bash completions are available
   if (!userHasBashCompletions(bashPath)) {
