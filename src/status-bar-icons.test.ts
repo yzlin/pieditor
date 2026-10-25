@@ -33,7 +33,7 @@ describe("status bar icons", () => {
     process.env.TERM_PROGRAM = "unknown-terminal";
 
     expect(hasNerdFonts()).toBe(true);
-    expect(getIcons().model).toBe("\u{f544}");
+    expect(getIcons().model).toBe("🧠");
   });
 
   it("falls back to ascii icons when explicitly disabled", () => {

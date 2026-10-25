@@ -52,7 +52,7 @@ const THINKING_TEXT_NERD: Record<string, string> = {
 
 const NERD_ICONS: IconSet = {
   pi: "\uE22C",
-  model: "\uF544",
+  model: "🧠",
   folder: "\uF07C",
   branch: "\uF126",
   git: "\uF1D3",

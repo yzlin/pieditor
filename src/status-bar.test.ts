@@ -700,7 +700,7 @@ describe("status bar", () => {
         theme,
       });
 
-      expect(line).toContain("\u{f544} test-model");
+      expect(line).toContain("🧠 test-model");
     } finally {
       if (originalNerdFonts === undefined) {
         process.env.POWERLINE_NERD_FONTS = undefined;
