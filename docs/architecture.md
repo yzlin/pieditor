@@ -160,7 +160,7 @@ Notes:
 
 - obsolete `fixedEditor` keys are ignored
 
-Pi `^0.84.0` is the minimum supported host. Pi owns regular/fullscreen viewport composition and TUI mode selection. Users choose official fullscreen through `/settings` or `--tui-mode fullscreen`; pieditor neither forces nor migrates that setting.
+Pi `^1.5.2` is the minimum supported host. Pi owns regular/fullscreen viewport composition and TUI mode selection. Users choose official fullscreen through `/settings` or `--tui-mode fullscreen`; pieditor neither forces nor migrates that setting.
 
 ## Native preview fallback
 
@@ -182,7 +182,7 @@ Pi owns regular/fullscreen viewport composition. Pieditor must remain compatible
 
 ## Manual validation notes
 
-- Run on Pi `^0.84.0` in regular mode and official fullscreen mode
+- Run on Pi `^1.5.2` in regular mode and official fullscreen mode
 - Switch modes through `/settings` and confirm editor, file picker, selectors, autocomplete, raw paste, and editor-buffer copy continue to work
 - Launch with `--tui-mode fullscreen` and confirm pieditor does not alter the selected TUI mode
 - Leave an obsolete `fixedEditor` key in config and confirm it has no effect

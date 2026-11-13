@@ -21,7 +21,7 @@ Current user-facing feature areas include:
 - **Composite editor**: one owner for Pi's custom editor surface, implemented so feature areas do not compete over `setEditorComponent()`.
 - **Composition runtime**: wiring layer that attaches the enhanced editor, footer listener, preview highlighter warmup, git invalidation, and copy-editor behavior.
 - **Editor feature modules**: editor behavior, file picker, shell completions, status bar, and configuration readers live under `src/`.
-- **Pi TUI host**: Pi `^0.84.0` owns regular/fullscreen rendering and the user's TUI mode choice.
+- **Pi TUI host**: Pi `^1.5.2` owns regular/fullscreen rendering and the user's TUI mode choice.
 - **Configuration**: global `~/.pi/agent/pieditor.json` plus project `.pi/pieditor.json`, layered over built-in defaults.
 - **Native preview addon**: optional Rust/N-API syntect highlighter used only by picker previews when native preview mode is configured.
 
@@ -37,7 +37,7 @@ Current user-facing feature areas include:
 ## Product constraints
 
 - `pieditor` intentionally owns `setEditorComponent()`; other editor-replacing extensions should not be enabled concurrently unless merged into `pieditor` first.
-- Pi `^0.84.0` is the minimum supported host and exclusively owns regular/fullscreen viewport composition; pieditor must support either mode without changing the user's selection.
+- Pi `^1.5.2` is the minimum supported host and exclusively owns regular/fullscreen viewport composition; pieditor must support either mode without changing the user's selection.
 - Obsolete `fixedEditor` config is ignored.
 - Keep upstream attribution to `w-winter/dot314` in `README.md` when updating this local extension.
 - Native preview highlighting must fall back to Pi built-in highlighting and then plain preview text when unavailable.

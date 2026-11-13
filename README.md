@@ -32,7 +32,7 @@ This extension currently provides:
 
 ## Usage
 
-This extension requires Pi `^0.84.0` and integrates directly into Pi's editor. The package is source-only: its public entrypoint and types resolve to `src/index.ts`, so any non-Pi consumer must also use a runtime or loader with TypeScript module support. Choose Pi's official fullscreen mode through `/settings` or launch with `--tui-mode fullscreen`; pieditor works with both Pi-owned regular and fullscreen rendering and never forces or migrates that setting. Pi continues to own viewport composition and mode selection.
+This extension requires Pi `^1.5.2` and integrates directly into Pi's editor. The package is source-only: its public entrypoint and types resolve to `src/index.ts`, so any non-Pi consumer must also use a runtime or loader with TypeScript module support. Choose Pi's official fullscreen mode through `/settings` or launch with `--tui-mode fullscreen`; pieditor works with both Pi-owned regular and fullscreen rendering and never forces or migrates that setting. Pi continues to own viewport composition and mode selection.
 
 On each non-empty submit from a detached fullscreen transcript, pieditor scrolls to the bottom immediately before forwarding the remapped text. Already-following fullscreen transcripts and regular mode are unaffected.
 
@@ -266,5 +266,5 @@ Current scope:
 
 ## Manual validation notes
 
-- With Pi `^0.84.0`, verify pieditor in both regular and official fullscreen modes, including switching through `/settings`; confirm pieditor does not change the selected mode
+- With Pi `^1.5.2`, verify pieditor in both regular and official fullscreen modes, including switching through `/settings`; confirm pieditor does not change the selected mode
 - Type text in the prompt editor, press `alt+c`, then run `/copy-editor`; confirm both copy the same raw editor buffer, empty buffers report `Editor buffer empty`, and active overlays report `Editor not ready`

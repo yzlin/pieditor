@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Breaking
 
 - Require Node.js 24 or newer for package consumers.
-- Require Pi `^0.84.0`; Pi 0.80 through 0.83 are no longer supported.
+- Require Pi `^1.5.2`; Pi 0.x releases are no longer supported.
+- Drop the unused `typebox` peer dependency; pieditor registers no tools and imports no TypeBox APIs.
 - Remove the `@yzlin/pieditor/replacement-surface-lease` package export; consumers must remove that integration.
 - Publish a source-only package: public imports and types now resolve to `src/index.ts`, requiring consumer runtime TypeScript support; compiled `dist`, generated `types`, and copied `schema` outputs are no longer shipped.
 

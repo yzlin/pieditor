@@ -43,7 +43,7 @@ function createTextSubmenu(
   currentValue: string,
   done: (value?: string) => void,
 ): Component {
-  const input = new Input();
+  const input = new Input({ prompt: "> " });
   const initial = currentValue === OFF_VALUE || currentValue === PRESET_VALUE ? "" : currentValue;
   // Insert as a bracketed paste so the cursor ends after the prefilled text (setValue keeps it at 0).
   input.handleInput(`\u001b[200~${initial}\u001b[201~`);
@@ -161,6 +161,8 @@ export async function openPieditorSettings(
     );
 
     return {
+      // Let PageUp/PageDown page the list instead of scrolling the fullscreen transcript.
+      capturesViewportInput: settingsList.capturesViewportInput,
       render: (width: number) => container.render(width),
       invalidate: () => container.invalidate(),
       handleInput: (data: string) => {
