@@ -129,6 +129,11 @@ Shell completion providers and shell detection.
   - copy the active prompt editor buffer as raw text through `composition.copyEditorBuffer()`
 - `/copy-editor`
   - command-owned source for the same raw active prompt editor buffer copy path as `alt+c`
+- `/pieditor`
+  - `src/settings-command.ts` opens a `SettingsList` over the scalar settings in `src/config/settings.ts`
+  - each change writes only the edited key to the global `~/.pi/agent/pieditor.json`; other keys are kept
+  - then `composition.reloadConfig()` rebuilds the editor/footer from re-loaded config; Pi keeps the draft text
+  - warns when project `.pi/pieditor.json` sets the same key; lists, maps, and colors stay JSON-only
 
 ## Config layering
 

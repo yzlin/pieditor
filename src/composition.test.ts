@@ -32,6 +32,7 @@ interface HarnessOptions {
   copyText?: (text: string) => void | Promise<void>;
   rootLines?: string[];
   overlayVisible?: boolean;
+  pieditorConfig?: Record<string, unknown>;
 }
 
 interface MockTui {
@@ -66,7 +67,7 @@ function createTempDir(): string {
   return dir;
 }
 
-function writePieditorConfig(homeDir: string): void {
+function writePieditorConfig(homeDir: string, extra: Record<string, unknown> = {}): void {
   const configPath = join(homeDir, ".pi", "agent", "pieditor.json");
   mkdirSync(join(homeDir, ".pi", "agent"), { recursive: true });
   writeFileSync(
@@ -74,6 +75,7 @@ function writePieditorConfig(homeDir: string): void {
     JSON.stringify({
       filePicker: { previewHighlightMode: "builtin" },
       statusBar: { enabled: false },
+      ...extra,
     }),
     "utf-8",
   );
@@ -126,7 +128,7 @@ function createHarness(options: HarnessOptions) {
   const root = createTempDir();
   const homeDir = join(root, "home");
   process.env.HOME = homeDir;
-  writePieditorConfig(homeDir);
+  writePieditorConfig(homeDir, options.pieditorConfig);
 
   let editorFactory: EditorFactory | undefined;
   let footerFactory: FooterFactory | undefined;
@@ -184,7 +186,12 @@ function createHarness(options: HarnessOptions) {
     throw new Error("pieditor did not register editor and footer factories");
   }
 
-  const createEditorComponent = editorFactory;
+  const createEditorComponent: EditorFactory = (...args) => {
+    if (!editorFactory) {
+      throw new Error("pieditor editor factory was cleared");
+    }
+    return editorFactory(...args);
+  };
   const createFooterComponent = footerFactory;
   const tui = createMockTui(options);
   const theme = {
@@ -243,6 +250,25 @@ describe("pieditor double-submit delivery", () => {
     expect(busyHarness.sentMessages).toEqual([
       { message: "continue", options: { deliverAs: "followUp" } },
     ]);
+  });
+
+  it("sends the configured doubleSubmitMessage", () => {
+    const harness = createHarness({ pieditorConfig: { doubleSubmitMessage: "keep going" } });
+    const editor = harness.createEditor();
+    editor.handleInput("ctrl+j");
+    editor.handleInput("ctrl+j");
+    expect(harness.sentMessages).toEqual([{ message: "keep going" }]);
+  });
+
+  it("reloadConfig rebuilds the editor with the new config", () => {
+    const harness = createHarness({});
+    writePieditorConfig(process.env.HOME as string, { doubleSubmitMessage: "after reload" });
+    harness.composition.reloadConfig(harness.ctx);
+
+    const editor = harness.createEditor();
+    editor.handleInput("ctrl+j");
+    editor.handleInput("ctrl+j");
+    expect(harness.sentMessages).toEqual([{ message: "after reload" }]);
   });
 });
 

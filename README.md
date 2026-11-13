@@ -23,8 +23,9 @@ This extension currently provides:
 - shell completions in `!` / `!!` mode
 - `alt+v` raw clipboard paste that bypasses Pi's large-paste markers
 - double-paste expansion for terminal bracketed pastes that Pi collapses into large-paste markers
-- double-submit on an exactly empty editor to send `continue`, with busy sessions using follow-up delivery
+- double-submit on an exactly empty editor to send `continue` (configurable via `doubleSubmitMessage`), with busy sessions using follow-up delivery
 - `alt+c` / `/copy-editor` raw active prompt editor buffer copy
+- `/pieditor` settings menu for the scalar config settings, saved to the global config and applied immediately
 - optional remapping of the editor's empty-editor double-escape gesture to an extension command such as `/anycopy`
 - configurable command remapping (e.g. make `/tree` execute `/anycopy` instead)
 - dedicated `caveman` status-bar segment that displays the standalone caveman extension's generic `caveman` status when active
@@ -48,7 +49,7 @@ Notable interactions:
 - Paste the same large terminal bracketed paste twice within 1000 ms to replace the collapsed draft with its expanded text. The first paste follows Pi's native marker behavior; the second works only while draft text is unchanged. Cursor-only movement, including leaving the cursor at the draft end, is allowed. Expansion replaces all currently valid Pi paste markers in the draft, not only the repeated one; this all-marker behavior avoids leaving hidden content but can expand unrelated earlier markers. Successful expansion through Pi's supported `setText()` moves the cursor to the end of the whole draft, even when the repeated marker was in the middle. One Undo immediately afterward restores the previously collapsed marker draft. `alt+v` remains a separate raw clipboard path and does not participate.
 - Press `alt+v` to paste clipboard text raw into the editor
 - Press `alt+c` or run `/copy-editor` to copy the active prompt editor buffer as raw text; it copies only current editor text, not transcript output, selection text, footer/status text, or overlay/replacement UI contents. If the editor is empty it reports `Editor buffer empty` and does not modify the clipboard.
-- Press the configured submit key twice within 500 ms on an exactly empty editor to send `continue`; the warning-colored frame marks the armed interval, autocomplete retains native submit handling, and any non-submit input cancels the gesture.
+- Press the configured submit key twice within 500 ms on an exactly empty editor to send `continue` (or the configured `doubleSubmitMessage`); the warning-colored frame marks the armed interval, autocomplete retains native submit handling, and any non-submit input cancels the gesture.
 - If the standalone `extensions/caveman` extension is loaded, built-in presets show the active `🪨 caveman` indicator through the dedicated `caveman` segment; custom segment lists must include `caveman` or `extension_statuses` to show it.
 - If the standalone `extensions/fast` extension is loaded, status key `fast` is appended to the `model` segment as compact `⚡` or `⚡*` without a dot separator. `extension_statuses` suppresses `fast` when `model` is configured.
 - Optionally configure `doubleEscapeCommand` in `~/.pi/agent/pieditor.json` or `.pi/pieditor.json` to invoke an extension command on double-escape when the editor is empty and Pi is idle
@@ -62,6 +63,8 @@ This extension primarily reads two config files:
 2. `.pi/pieditor.json` for project overrides
 
 Put file picker settings under the nested `filePicker` key in either file (copy from `config.json.example`).
+
+Run `/pieditor` in a Pi session to change the scalar settings from a searchable menu. Enter/space cycles booleans and enums; text and number settings open an inline input, and an empty value resets them to the default. Each change writes only that key to the global `~/.pi/agent/pieditor.json`, keeps your other keys, and applies at once without a restart. When `.pi/pieditor.json` sets the same key, the project value still wins and `/pieditor` shows a warning. `commandRemap`, `filePicker.skipPatterns`, `statusBar.leftSegments`/`rightSegments`, and `statusBar.colors` stay JSON-only. Segment options shown as `preset` are unset, so the status bar preset decides.
 
 Editor schema help: this extension now ships `extensions/pieditor/configuration_schema.json`. I found no pi-side auto-discovery for that filename in this repo or the installed pi package, so use it as editor tooling only: either associate your config file with that schema in editor settings, or add a `$schema` path manually when your config location makes a stable relative path possible.
 
@@ -80,6 +83,9 @@ Then add the rest of your config fields:
   - accepts either `"anycopy"` or `"/anycopy"`
   - only commands registered via `pi.registerCommand()` are supported
   - Pi native built-ins like `/tree` are not supported here
+- `doubleSubmitMessage`: message sent by the empty-editor double-submit gesture
+  - default: `"continue"`
+  - sent verbatim; blank or non-string values are ignored so lower layers/defaults apply
 - `commandRemap`: map of command names to replacements, applied at submit time
   - default: `{}`
   - keys and values are normalized (leading `/` stripped, whitespace trimmed)
@@ -151,6 +157,7 @@ Then add the rest of your config fields:
 ```json
 {
   "doubleEscapeCommand": "anycopy",
+  "doubleSubmitMessage": "continue",
   "commandRemap": {
     "tree": "anycopy",
     "resume": "switch-session"

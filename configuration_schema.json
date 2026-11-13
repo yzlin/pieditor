@@ -9,6 +9,12 @@
       "default": null,
       "description": "Optional extension command name to invoke on empty-editor double-escape. Accepts either 'anycopy' or '/anycopy'."
     },
+    "doubleSubmitMessage": {
+      "type": "string",
+      "default": "continue",
+      "minLength": 1,
+      "description": "Message sent when the submit key is pressed twice within 500 ms on an empty editor. Blank values fall back to lower config layers or 'continue'."
+    },
     "commandRemap": {
       "type": "object",
       "default": {},

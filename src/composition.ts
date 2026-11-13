@@ -71,81 +71,95 @@ export function createPieditorComposition(
     return options.copyText ?? copyToClipboard;
   }
 
+  function installEditor(ctx: ExtensionContext): void {
+    runtime.activeContext = ctx;
+    const config = loadConfig({
+      onConfigError: (message) => ctx.ui.notify(message, "error"),
+    });
+    let warnedMissingDoubleEscapeCommand = false;
+
+    const getDoubleEscapeCommand = () => {
+      const commandState = getDoubleEscapeCommandState(pi, config.doubleEscapeCommand);
+
+      if (commandState.command && !commandState.isVisible && !warnedMissingDoubleEscapeCommand) {
+        ctx.ui.notify(
+          `pieditor: '/${commandState.command}' is not currently visible in slash commands; submitting it anyway`,
+          "warning",
+        );
+      }
+
+      warnedMissingDoubleEscapeCommand = Boolean(commandState.command && !commandState.isVisible);
+      return commandState.command;
+    };
+
+    ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
+      runtime.activeEditorTui = tui;
+      runtime.activeEditor = new EnhancedEditor(tui, theme, keybindings, ctx.ui, {
+        onContinue: () => {
+          if (runtime.activeContext?.isIdle()) {
+            pi.sendUserMessage(config.doubleSubmitMessage);
+          } else {
+            pi.sendUserMessage(config.doubleSubmitMessage, { deliverAs: "followUp" });
+          }
+        },
+        getDoubleEscapeCommand,
+        canTriggerDoubleEscapeCommand: () =>
+          Boolean(runtime.activeContext?.isIdle() && !runtime.activeContext.hasPendingMessages()),
+        commandRemap: config.commandRemap,
+        doublePaste: config.doublePaste,
+        editorChrome: config.editorChrome,
+        statusBar: {
+          config: config.statusBar,
+          getContext: () => runtime.activeContext,
+          getFooterData: () => runtime.activeFooterData,
+          getTokensPerSecond: () => tpsTracker.getTokensPerSecond(),
+        },
+      });
+      return runtime.activeEditor;
+    });
+
+    ctx.ui.setFooter((tui: TUI, _theme: Theme, footerData: ReadonlyFooterDataProvider) => {
+      runtime.activeFooterData = footerData;
+      const unsub = footerData.onBranchChange(() => tui.requestRender());
+      return {
+        dispose() {
+          unsub();
+          if (runtime.activeFooterData === footerData) {
+            runtime.activeFooterData = null;
+          }
+        },
+        invalidate() {
+          // Footer data is pulled during EnhancedEditor.render().
+        },
+        render(): string[] {
+          return [];
+        },
+      };
+    });
+
+    setTimeout(() => {
+      warmPreviewHighlighter(config.filePicker.previewHighlightMode);
+    }, 0);
+  }
+
   return {
     attachEditor(ctx: ExtensionContext): void {
       if (!ctx.hasUI) {
         return;
       }
 
-      runtime.activeContext = ctx;
       tpsTracker.reset();
-      const config = loadConfig({
-        onConfigError: (message) => ctx.ui.notify(message, "error"),
-      });
-      let warnedMissingDoubleEscapeCommand = false;
+      installEditor(ctx);
+    },
 
-      const getDoubleEscapeCommand = () => {
-        const commandState = getDoubleEscapeCommandState(pi, config.doubleEscapeCommand);
+    /** Re-reads pieditor config and rebuilds the editor and footer; Pi keeps the draft text. */
+    reloadConfig(ctx: ExtensionContext): void {
+      if (!ctx.hasUI) {
+        return;
+      }
 
-        if (commandState.command && !commandState.isVisible && !warnedMissingDoubleEscapeCommand) {
-          ctx.ui.notify(
-            `pieditor: '/${commandState.command}' is not currently visible in slash commands; submitting it anyway`,
-            "warning",
-          );
-        }
-
-        warnedMissingDoubleEscapeCommand = Boolean(commandState.command && !commandState.isVisible);
-        return commandState.command;
-      };
-
-      ctx.ui.setEditorComponent((tui: TUI, theme: EditorTheme, keybindings: KeybindingsManager) => {
-        runtime.activeEditorTui = tui;
-        runtime.activeEditor = new EnhancedEditor(tui, theme, keybindings, ctx.ui, {
-          onContinue: () => {
-            if (runtime.activeContext?.isIdle()) {
-              pi.sendUserMessage("continue");
-            } else {
-              pi.sendUserMessage("continue", { deliverAs: "followUp" });
-            }
-          },
-          getDoubleEscapeCommand,
-          canTriggerDoubleEscapeCommand: () =>
-            Boolean(runtime.activeContext?.isIdle() && !runtime.activeContext.hasPendingMessages()),
-          commandRemap: config.commandRemap,
-          doublePaste: config.doublePaste,
-          editorChrome: config.editorChrome,
-          statusBar: {
-            config: config.statusBar,
-            getContext: () => runtime.activeContext,
-            getFooterData: () => runtime.activeFooterData,
-            getTokensPerSecond: () => tpsTracker.getTokensPerSecond(),
-          },
-        });
-        return runtime.activeEditor;
-      });
-
-      ctx.ui.setFooter((tui: TUI, _theme: Theme, footerData: ReadonlyFooterDataProvider) => {
-        runtime.activeFooterData = footerData;
-        const unsub = footerData.onBranchChange(() => tui.requestRender());
-        return {
-          dispose() {
-            unsub();
-            if (runtime.activeFooterData === footerData) {
-              runtime.activeFooterData = null;
-            }
-          },
-          invalidate() {
-            // Footer data is pulled during EnhancedEditor.render().
-          },
-          render(): string[] {
-            return [];
-          },
-        };
-      });
-
-      setTimeout(() => {
-        warmPreviewHighlighter(config.filePicker.previewHighlightMode);
-      }, 0);
+      runtime.activeEditor?.dispose();
+      installEditor(ctx);
     },
 
     detachEditor(): void {

@@ -56,6 +56,7 @@ export interface DoublePasteRuntimeConfig {
 
 export interface EditorEnhancementsConfig {
   doubleEscapeCommand?: string | null;
+  doubleSubmitMessage?: string;
   commandRemap?: Record<string, string>;
   editorChrome?: EditorChromeConfig;
   doublePaste?: DoublePasteConfig;
@@ -65,6 +66,7 @@ export interface EditorEnhancementsConfig {
 
 export interface EditorEnhancementsRuntimeConfig {
   doubleEscapeCommand: string | null;
+  doubleSubmitMessage: string;
   commandRemap: Record<string, string>;
   editorChrome: EditorChromeRuntimeConfig;
   doublePaste: DoublePasteRuntimeConfig;
@@ -74,6 +76,7 @@ export interface EditorEnhancementsRuntimeConfig {
 
 interface EditorEnhancementsConfigLayer {
   doubleEscapeCommand?: string | null;
+  doubleSubmitMessage?: string;
   commandRemap?: Record<string, string>;
   editorChrome?: Partial<EditorChromeRuntimeConfig>;
   doublePaste?: Partial<DoublePasteRuntimeConfig>;
@@ -89,6 +92,7 @@ interface LoadConfigOptions {
 
 const DEFAULT_CONFIG: EditorEnhancementsRuntimeConfig = {
   doubleEscapeCommand: null,
+  doubleSubmitMessage: "continue",
   commandRemap: {},
   editorChrome: {
     style: "classic",
@@ -116,6 +120,10 @@ export function normalizeCommandName(value: unknown): string | null {
 
   const normalized = trimmed.startsWith("/") ? trimmed.slice(1) : trimmed;
   return normalized || null;
+}
+
+function normalizeDoubleSubmitMessage(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 export function normalizeCommandRemap(value: unknown): Record<string, string> {
@@ -411,6 +419,10 @@ function loadConfigFile(
       next.doubleEscapeCommand = normalizeCommandName(parsed.doubleEscapeCommand);
     }
 
+    if (Object.hasOwn(parsed, "doubleSubmitMessage")) {
+      next.doubleSubmitMessage = normalizeDoubleSubmitMessage(parsed.doubleSubmitMessage);
+    }
+
     if (Object.hasOwn(parsed, "commandRemap")) {
       next.commandRemap = normalizeCommandRemap(parsed.commandRemap);
     }
@@ -448,6 +460,10 @@ export function resolveRuntimeConfig(
       projectConfig?.doubleEscapeCommand ??
       globalConfig?.doubleEscapeCommand ??
       DEFAULT_CONFIG.doubleEscapeCommand,
+    doubleSubmitMessage:
+      projectConfig?.doubleSubmitMessage ??
+      globalConfig?.doubleSubmitMessage ??
+      DEFAULT_CONFIG.doubleSubmitMessage,
     commandRemap: {
       ...DEFAULT_CONFIG.commandRemap,
       ...globalConfig?.commandRemap,

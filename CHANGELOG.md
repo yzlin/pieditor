@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - Verify npm package contents with `npm pack --dry-run` before publishing releases.
 - Add a `tps` status bar segment showing output tokens per second for the last completed assistant message; included in the `full` and `nerd` presets.
 - Add a default-on empty-editor double-submit gesture that sends literal `continue`, queues it as a follow-up while busy, and shows a warning-colored editor frame during the 500 ms armed window.
+- Add `doubleSubmitMessage` config to customize the text sent by the double-submit gesture (default `continue`).
+- Add `/pieditor` settings menu to edit scalar settings in the global config, applied live without restarting.
 
 ### Changed
 

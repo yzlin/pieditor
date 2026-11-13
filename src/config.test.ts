@@ -44,6 +44,7 @@ describe("pieditor config", () => {
       },
       {
         doubleEscapeCommand: "project-command",
+        doubleSubmitMessage: "keep going",
         commandRemap: {
           tree: "project-tree",
         },
@@ -70,6 +71,7 @@ describe("pieditor config", () => {
 
     expect(config).toEqual({
       doubleEscapeCommand: "project-command",
+      doubleSubmitMessage: "keep going",
       commandRemap: {
         tree: "project-tree",
         test: "global-test",
@@ -181,6 +183,30 @@ describe("pieditor config", () => {
     }
   });
 
+  it("ignores blank or non-string doubleSubmitMessage values per layer", () => {
+    const tempRoot = mkdtempSync(join(tmpdir(), "pieditor-"));
+    const homeDir = join(tempRoot, "home");
+    const cwd = join(tempRoot, "project");
+    const globalConfigPath = join(homeDir, ".pi", "agent", "pieditor.json");
+    const projectConfigPath = join(cwd, ".pi", "pieditor.json");
+
+    mkdirSync(dirname(globalConfigPath), { recursive: true });
+    mkdirSync(dirname(projectConfigPath), { recursive: true });
+    writeFileSync(globalConfigPath, JSON.stringify({ doubleSubmitMessage: "proceed" }));
+    writeFileSync(projectConfigPath, JSON.stringify({ doubleSubmitMessage: "   " }));
+
+    try {
+      expect(loadConfig({ homeDir, cwd }).doubleSubmitMessage).toBe("proceed");
+
+      writeFileSync(globalConfigPath, JSON.stringify({ doubleSubmitMessage: 42 }));
+      writeFileSync(projectConfigPath, JSON.stringify({}));
+
+      expect(loadConfig({ homeDir, cwd }).doubleSubmitMessage).toBe("continue");
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it("uses defaults when file picker config is omitted", () => {
     const config = resolveRuntimeConfig(
       {
@@ -195,6 +221,7 @@ describe("pieditor config", () => {
 
     expect(config).toEqual({
       doubleEscapeCommand: "global-command",
+      doubleSubmitMessage: "continue",
       commandRemap: {
         tree: "anycopy",
       },

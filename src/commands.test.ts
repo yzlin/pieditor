@@ -7,7 +7,7 @@ import { registerPieditorCommands } from "./commands";
 type RegisteredCommandOptions = Parameters<ExtensionAPI["registerCommand"]>[1];
 
 describe("pieditor commands", () => {
-  it("registers only copy-editor using shared runtime behavior", async () => {
+  it("registers copy-editor and pieditor using shared runtime behavior", async () => {
     const commands = new Map<string, RegisteredCommandOptions>();
     let copyEditorCallCount = 0;
     const pi = {
@@ -20,9 +20,10 @@ describe("pieditor commands", () => {
       async copyEditorBuffer() {
         copyEditorCallCount += 1;
       },
+      reloadConfig() {},
     });
 
-    expect([...commands.keys()]).toEqual(["copy-editor"]);
+    expect([...commands.keys()]).toEqual(["copy-editor", "pieditor"]);
     await commands.get("copy-editor")?.handler?.("", {} as never);
     expect(copyEditorCallCount).toBe(1);
   });
